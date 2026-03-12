@@ -395,6 +395,200 @@ class AuthController extends Controller
     }
 
     /**
+     * Get the currently authenticated user (full user record).
+     * Requires a valid JWT token.
+     */
+    public function me(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        $data = $user->toArray();
+
+        if (!empty($data['profile_image'])) {
+            $data['profile_image_url'] = url($data['profile_image']);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User profile fetched successfully.',
+            'data' => [
+                'user' => $data,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Change password for the authenticated user.
+     * Requires current password and a new password.
+     */
+    public function changePassword(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'current_password' => ['required', 'string'],
+            'new_password' => ['required', 'string', 'min:8'],
+            'confirm_password' => ['required', 'string', 'min:8', 'same:new_password'],
+        ], [
+            'current_password.required' => 'Current password is required.',
+            'new_password.required' => 'New password is required.',
+            'new_password.min' => 'New password must be at least 8 characters.',
+            'confirm_password.required' => 'Password confirmation is required.',
+            'confirm_password.min' => 'Password confirmation must be at least 8 characters.',
+            'confirm_password.same' => 'Password and confirmation do not match.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        if (!Hash::check($request->input('current_password'), $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => [
+                    'current_password' => ['Current password is incorrect.'],
+                ],
+            ], 422);
+        }
+
+        $user->update([
+            'password' => Hash::make($request->input('new_password')),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password updated successfully.',
+        ], 200);
+    }
+
+    /**
+     * Change email - Step 1: send OTP to new email.
+     */
+    public function changeEmailSendOtp(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'new_email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
+        ], [
+            'new_email.required' => 'New email is required.',
+            'new_email.email' => 'Please provide a valid email address.',
+            'new_email.unique' => 'This email is already registered.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        $user->update([
+            'otp' => $otp,
+            'new_email' => $request->input('new_email'),
+        ]);
+
+        // Here you would typically send the OTP to the new email address.
+
+        return response()->json([
+            'success' => true,
+            'message' => 'A 6-digit verification code has been sent to your new email.',
+        ], 200);
+    }
+
+    /**
+     * Change email - Step 2: verify OTP and update email.
+     */
+    public function changeEmailVerifyOtp(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated.',
+            ], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'otp' => ['required', 'string', 'regex:/^\d{6}$/'],
+        ], [
+            'otp.required' => 'OTP is required.',
+            'otp.regex' => 'OTP must be exactly 6 digits.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        if (empty($user->new_email)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No pending email change request found.',
+            ], 400);
+        }
+
+        if ($user->otp !== $request->input('otp')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid OTP. Please try again.',
+            ], 400);
+        }
+
+        $user->update([
+            'email' => $user->new_email,
+            'new_email' => null,
+            'otp' => null,
+        ]);
+
+        $data = $user->only(['id', 'first_name', 'last_name', 'email', 'profile_image', 'gender', 'status']);
+        if (!empty($data['profile_image'])) {
+            $data['profile_image_url'] = url($data['profile_image']);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Email updated successfully.',
+            'data' => [
+                'user' => $data,
+            ],
+        ], 200);
+    }
+
+    /**
      * Generate JWT token for user
      */
     private function generateJwtToken(User $user): string

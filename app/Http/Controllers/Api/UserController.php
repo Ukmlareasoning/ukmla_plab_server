@@ -128,7 +128,7 @@ class UserController extends Controller
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'gender' => ['required', 'string', 'in:male,female,other,Male,Female,Other'],
-            'profile_image' => ['required', 'image', 'mimes:jpeg,jpg,png,gif,webp', 'max:2048'],
+            'profile_image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp', 'max:2048'],
         ], [
             'first_name.required' => 'First name is required.',
             'first_name.max' => 'First name must not exceed 255 characters.',
