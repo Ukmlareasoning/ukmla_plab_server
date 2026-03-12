@@ -14,6 +14,10 @@ Route::prefix('auth')->group(function () {
     Route::post('/forgot-password/reset', [AuthController::class, 'forgotPasswordReset']);
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/logout', [AuthController::class, 'logout'])->middleware(JwtAuthMiddleware::class);
+    Route::get('/me', [AuthController::class, 'me'])->middleware(JwtAuthMiddleware::class);
+    Route::post('/change-password', [AuthController::class, 'changePassword'])->middleware(JwtAuthMiddleware::class);
+    Route::post('/change-email/send-otp', [AuthController::class, 'changeEmailSendOtp'])->middleware(JwtAuthMiddleware::class);
+    Route::post('/change-email/verify-otp', [AuthController::class, 'changeEmailVerifyOtp'])->middleware(JwtAuthMiddleware::class);
 });
 
 Route::middleware(JwtAuthMiddleware::class)->group(function () {
