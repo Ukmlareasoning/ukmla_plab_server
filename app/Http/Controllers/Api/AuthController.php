@@ -24,12 +24,14 @@ class AuthController extends Controller
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
+            'is_agreed' => ['accepted'],
         ], [
             'first_name.required' => 'First name is required.',
             'last_name.required' => 'Last name is required.',
             'email.required' => 'Email is required.',
             'email.email' => 'Please provide a valid email address.',
             'email.unique' => 'This email is already registered.',
+            'is_agreed.accepted' => 'You must agree to the terms.',
         ]);
 
         if ($validator->fails()) {
@@ -49,6 +51,8 @@ class AuthController extends Controller
             'otp' => $otp,
             'is_email_verified' => false,
             'login_method' => 'web_form',
+            'is_agreed' => $request->boolean('is_agreed'),
+            'user_status' => 'normal',
         ]);
 
         return response()->json([
@@ -164,6 +168,132 @@ class AuthController extends Controller
     }
 
     /**
+     * Forgot password - Step 1: send OTP to email
+     */
+    public function forgotPasswordSendOtp(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'string', 'email', 'exists:users,email'],
+        ], [
+            'email.required' => 'Email is required.',
+            'email.email' => 'Please provide a valid email address.',
+            'email.exists' => 'No account found with this email.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $user = User::where('email', $request->email)->first();
+
+        $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        $user->update([
+            'otp' => $otp,
+        ]);
+
+        // Here you would typically send the OTP via email.
+
+        return response()->json([
+            'success' => true,
+            'message' => 'A 6-digit verification code has been sent to your email.',
+        ], 200);
+    }
+
+    /**
+     * Forgot password - Step 2: verify OTP
+     */
+    public function forgotPasswordVerifyOtp(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'string', 'email', 'exists:users,email'],
+            'otp' => ['required', 'string', 'regex:/^\d{6}$/'],
+        ], [
+            'email.required' => 'Email is required.',
+            'email.email' => 'Please provide a valid email address.',
+            'email.exists' => 'No account found with this email.',
+            'otp.required' => 'OTP is required.',
+            'otp.regex' => 'OTP must be exactly 6 digits.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $user = User::where('email', $request->email)->first();
+
+        if ($user->otp !== $request->otp) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid OTP. Please try again.',
+            ], 400);
+        }
+
+        $user->update([
+            'otp' => null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'OTP verified successfully. You can now reset your password.',
+        ], 200);
+    }
+
+    /**
+     * Forgot password - Step 3: reset password
+     */
+    public function forgotPasswordReset(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'string', 'email', 'exists:users,email'],
+            'password' => ['required', 'string', 'min:8'],
+            'confirm_password' => ['required', 'string', 'min:8', 'same:password'],
+        ], [
+            'email.required' => 'Email is required.',
+            'email.email' => 'Please provide a valid email address.',
+            'email.exists' => 'No account found with this email.',
+            'password.required' => 'Password is required.',
+            'password.min' => 'Password must be at least 8 characters.',
+            'confirm_password.required' => 'Password confirmation is required.',
+            'confirm_password.same' => 'Password and confirmation do not match.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $user = User::where('email', $request->email)->first();
+
+        if ($user->otp !== null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please verify the OTP sent to your email before resetting your password.',
+            ], 403);
+        }
+
+        $user->update([
+            'password' => Hash::make($request->password),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password reset successfully. You can now log in with your new password.',
+        ], 200);
+    }
+
+    /**
      * Login with email and password, returns JWT token
      */
     public function login(Request $request): JsonResponse
@@ -203,7 +333,10 @@ class AuthController extends Controller
 
         $token = $this->generateJwtToken($user);
 
-        $user->update(['last_activity_at' => now()]);
+        $user->update([
+            'last_activity_at' => now(),
+            'is_online' => true,
+        ]);
 
         return response()->json([
             'success' => true,
@@ -240,7 +373,10 @@ class AuthController extends Controller
 
         $user = $request->user();
         if ($user) {
-            $user->update(['last_activity_at' => Carbon::now()->subMinute()]);
+            $user->update([
+                'last_activity_at' => Carbon::now()->subMinute(),
+                'is_online' => false,
+            ]);
         }
 
         DB::table('blacklisted_tokens')->insertOrIgnore([

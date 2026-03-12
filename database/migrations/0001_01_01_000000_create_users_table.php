@@ -21,6 +21,14 @@ return new class extends Migration
             $table->boolean('is_email_verified')->default(false);
             $table->string('profile_image')->nullable();
             $table->enum('login_method', ['web_form', 'google_auth'])->default('web_form');
+            $table->boolean('is_online')->default(false);
+            $table->boolean('is_agreed')->default(false);
+            $table->enum('user_status', ['normal', 'admin'])->default('normal');
+            $table->boolean('is_subscribed')->nullable();
+            $table->string('subscription_type')->nullable();
+            $table->date('subscription_start_date')->nullable();
+            $table->date('subscription_end_date')->nullable();
+            $table->unsignedBigInteger('active_subscription_id')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });
