@@ -29,6 +29,14 @@ class User extends Authenticatable
         'gender',
         'status',
         'last_activity_at',
+        'is_online',
+        'is_agreed',
+        'user_status',
+        'is_subscribed',
+        'subscription_type',
+        'subscription_start_date',
+        'subscription_end_date',
+        'active_subscription_id',
     ];
 
     /**
@@ -53,6 +61,11 @@ class User extends Authenticatable
             'is_email_verified' => 'boolean',
             'password' => 'hashed',
             'last_activity_at' => 'datetime',
+            'is_online' => 'boolean',
+            'is_agreed' => 'boolean',
+            'is_subscribed' => 'boolean',
+            'subscription_start_date' => 'date',
+            'subscription_end_date' => 'date',
         ];
     }
 }

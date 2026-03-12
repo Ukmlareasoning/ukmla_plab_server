@@ -9,6 +9,9 @@ Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
     Route::post('/create-password', [AuthController::class, 'createPassword']);
+    Route::post('/forgot-password/send-otp', [AuthController::class, 'forgotPasswordSendOtp']);
+    Route::post('/forgot-password/verify-otp', [AuthController::class, 'forgotPasswordVerifyOtp']);
+    Route::post('/forgot-password/reset', [AuthController::class, 'forgotPasswordReset']);
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/logout', [AuthController::class, 'logout'])->middleware(JwtAuthMiddleware::class);
 });
