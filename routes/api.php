@@ -1,6 +1,7 @@
 <?php
 // git pipeline testing.
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ExamTypeController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Middleware\JwtAuthMiddleware;
 use Illuminate\Support\Facades\Route;
@@ -24,4 +25,11 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::get('/users', [UserController::class, 'index']);
     Route::match(['put', 'post'], '/users/{id}', [UserController::class, 'update'])
         ->middleware('image.upload:profile_image,2048');
+
+    // Exam Types module (protected by JWT)
+    Route::get('/exam-types', [ExamTypeController::class, 'index']);
+    Route::post('/exam-types', [ExamTypeController::class, 'store']);
+    Route::match(['put', 'post'], '/exam-types/{id}', [ExamTypeController::class, 'update']);
+    Route::delete('/exam-types/{id}', [ExamTypeController::class, 'destroy']);
+    Route::post('/exam-types/{id}/restore', [ExamTypeController::class, 'restore']);
 });
