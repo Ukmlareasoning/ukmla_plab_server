@@ -348,6 +348,7 @@ class AuthController extends Controller
                     'last_name' => $user->last_name,
                     'email' => $user->email,
                     'profile_image' => $user->profile_image,
+                    'user_status' => $user->user_status,
                 ],
                 'token' => $token,
                 'token_type' => 'Bearer',
