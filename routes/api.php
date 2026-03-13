@@ -6,8 +6,10 @@ use App\Http\Controllers\Api\ScenarioTopicFocusController;
 use App\Http\Controllers\Api\NotesTypeController;
 use App\Http\Controllers\Api\StaticPageController;
 use App\Http\Controllers\Api\ServiceController;
+use App\Http\Controllers\Api\WebinarController;
 use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\DifficultyLevelController;
+use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\TopicFocusController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Middleware\JwtAuthMiddleware;
@@ -83,6 +85,13 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::delete('/services/{id}', [ServiceController::class, 'destroy']);
     Route::post('/services/{id}/restore', [ServiceController::class, 'restore']);
 
+    // Webinars module (protected by JWT)
+    Route::get('/webinars', [WebinarController::class, 'index']);
+    Route::post('/webinars', [WebinarController::class, 'store'])->middleware('image.upload:banner_image,5120');
+    Route::match(['put', 'post'], '/webinars/{id}', [WebinarController::class, 'update'])->middleware('image.upload:banner_image,5120');
+    Route::delete('/webinars/{id}', [WebinarController::class, 'destroy']);
+    Route::post('/webinars/{id}/restore', [WebinarController::class, 'restore']);
+
     // Notes module (protected by JWT)
     Route::get('/notes', [NoteController::class, 'index']);
     Route::post('/notes', [NoteController::class, 'store']);
@@ -90,4 +99,11 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::match(['put', 'post'], '/notes/{id}', [NoteController::class, 'update']);
     Route::delete('/notes/{id}', [NoteController::class, 'destroy']);
     Route::post('/notes/{id}/restore', [NoteController::class, 'restore']);
+
+    // Announcements module (protected by JWT)
+    Route::get('/announcements', [AnnouncementController::class, 'index']);
+    Route::post('/announcements', [AnnouncementController::class, 'store']);
+    Route::match(['put', 'post'], '/announcements/{id}', [AnnouncementController::class, 'update']);
+    Route::delete('/announcements/{id}', [AnnouncementController::class, 'destroy']);
+    Route::post('/announcements/{id}/restore', [AnnouncementController::class, 'restore']);
 });
