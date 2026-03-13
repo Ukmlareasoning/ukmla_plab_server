@@ -4,6 +4,9 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ExamTypeController;
 use App\Http\Controllers\Api\ScenarioTopicFocusController;
 use App\Http\Controllers\Api\NotesTypeController;
+use App\Http\Controllers\Api\StaticPageController;
+use App\Http\Controllers\Api\ServiceController;
+use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\DifficultyLevelController;
 use App\Http\Controllers\Api\TopicFocusController;
 use App\Http\Controllers\Api\UserController;
@@ -58,10 +61,33 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::delete('/notes-types/{id}', [NotesTypeController::class, 'destroy']);
     Route::post('/notes-types/{id}/restore', [NotesTypeController::class, 'restore']);
 
+    // Static Pages module (protected by JWT)
+    Route::get('/static-pages', [StaticPageController::class, 'index']);
+    Route::post('/static-pages', [StaticPageController::class, 'store']);
+    Route::get('/static-pages/{id}', [StaticPageController::class, 'show']);
+    Route::match(['put', 'post'], '/static-pages/{id}', [StaticPageController::class, 'update']);
+    Route::delete('/static-pages/{id}', [StaticPageController::class, 'destroy']);
+    Route::post('/static-pages/{id}/restore', [StaticPageController::class, 'restore']);
+
     // Difficulty Levels module (protected by JWT)
     Route::get('/difficulty-levels', [DifficultyLevelController::class, 'index']);
     Route::post('/difficulty-levels', [DifficultyLevelController::class, 'store']);
     Route::match(['put', 'post'], '/difficulty-levels/{id}', [DifficultyLevelController::class, 'update']);
     Route::delete('/difficulty-levels/{id}', [DifficultyLevelController::class, 'destroy']);
     Route::post('/difficulty-levels/{id}/restore', [DifficultyLevelController::class, 'restore']);
+
+    // Services module (protected by JWT)
+    Route::get('/services', [ServiceController::class, 'index']);
+    Route::post('/services', [ServiceController::class, 'store']);
+    Route::match(['put', 'post'], '/services/{id}', [ServiceController::class, 'update']);
+    Route::delete('/services/{id}', [ServiceController::class, 'destroy']);
+    Route::post('/services/{id}/restore', [ServiceController::class, 'restore']);
+
+    // Notes module (protected by JWT)
+    Route::get('/notes', [NoteController::class, 'index']);
+    Route::post('/notes', [NoteController::class, 'store']);
+    Route::get('/notes/{id}', [NoteController::class, 'show']);
+    Route::match(['put', 'post'], '/notes/{id}', [NoteController::class, 'update']);
+    Route::delete('/notes/{id}', [NoteController::class, 'destroy']);
+    Route::post('/notes/{id}/restore', [NoteController::class, 'restore']);
 });
