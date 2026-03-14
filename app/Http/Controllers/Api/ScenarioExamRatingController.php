@@ -27,18 +27,22 @@ class ScenarioExamRatingController extends Controller
         $perPage = $perPage > 0 ? min($perPage, 100) : 10;
 
         $ratings = ScenarioExamRating::query()
-            ->with('user:id,name,email')
+            ->with('user:id,first_name,last_name,email,profile_image')
             ->where('scenario_exam_id', $examId)
             ->orderBy('id', 'desc')
             ->paginate($perPage);
 
         $items = collect($ratings->items())->map(function (ScenarioExamRating $r) {
+            $fullName = $r->user
+                ? trim(($r->user->first_name ?? '') . ' ' . ($r->user->last_name ?? '')) ?: 'Unknown'
+                : 'Unknown';
+            $profileImageUrl = $r->user?->profile_image ? url($r->user->profile_image) : null;
             return [
                 'id'               => $r->id,
                 'scenario_exam_id' => $r->scenario_exam_id,
                 'user_id'          => $r->user_id,
-                'full_name'        => $r->user?->name ?? 'Unknown',
-                'profile_image'    => null,
+                'full_name'        => $fullName,
+                'profile_image'    => $profileImageUrl,
                 'stars'            => $r->stars,
                 'comment'          => $r->comment,
                 'created_at'       => $r->created_at?->toIso8601String(),
