@@ -19,6 +19,10 @@ use App\Http\Controllers\Api\ScenarioController;
 use App\Http\Controllers\Api\ScenarioExamController;
 use App\Http\Controllers\Api\ScenarioQuestionController;
 use App\Http\Controllers\Api\ScenarioExamRatingController;
+use App\Http\Controllers\Api\MockController;
+use App\Http\Controllers\Api\MockExamController;
+use App\Http\Controllers\Api\MockQuestionController;
+use App\Http\Controllers\Api\MockExamRatingController;
 use App\Http\Middleware\JwtAuthMiddleware;
 use Illuminate\Support\Facades\Route;
 
@@ -153,4 +157,32 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
 
     // Scenario Exam Ratings (protected by JWT)
     Route::get('/scenario-exam-ratings', [ScenarioExamRatingController::class, 'index']);
+
+    // Mocks module (protected by JWT)
+    Route::get('/mocks', [MockController::class, 'index']);
+    Route::post('/mocks', [MockController::class, 'store']);
+    Route::get('/mocks/{id}', [MockController::class, 'show']);
+    Route::put('/mocks/{id}/pricing', [MockController::class, 'updatePricing']);
+    Route::match(['put', 'post'], '/mocks/{id}', [MockController::class, 'update']);
+    Route::delete('/mocks/{id}', [MockController::class, 'destroy']);
+    Route::post('/mocks/{id}/restore', [MockController::class, 'restore']);
+
+    // Mock Exams module (protected by JWT)
+    Route::get('/mock-exams', [MockExamController::class, 'index']);
+    Route::post('/mock-exams', [MockExamController::class, 'store']);
+    Route::post('/mock-exams/release-mode', [MockExamController::class, 'updateReleaseMode']);
+    Route::match(['put', 'post'], '/mock-exams/{id}', [MockExamController::class, 'update']);
+    Route::delete('/mock-exams/{id}', [MockExamController::class, 'destroy']);
+    Route::post('/mock-exams/{id}/restore', [MockExamController::class, 'restore']);
+
+    // Mock Questions module (protected by JWT)
+    Route::get('/mock-questions', [MockQuestionController::class, 'index']);
+    Route::post('/mock-questions', [MockQuestionController::class, 'store']);
+    Route::get('/mock-questions/{id}', [MockQuestionController::class, 'show']);
+    Route::match(['put', 'post'], '/mock-questions/{id}', [MockQuestionController::class, 'update']);
+    Route::delete('/mock-questions/{id}', [MockQuestionController::class, 'destroy']);
+    Route::post('/mock-questions/{id}/restore', [MockQuestionController::class, 'restore']);
+
+    // Mock Exam Ratings (protected by JWT)
+    Route::get('/mock-exam-ratings', [MockExamRatingController::class, 'index']);
 });
