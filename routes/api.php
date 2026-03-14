@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\WebinarController;
 use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\DifficultyLevelController;
 use App\Http\Controllers\Api\AnnouncementController;
+use App\Http\Controllers\Api\ContactController;
+use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\TopicFocusController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Middleware\JwtAuthMiddleware;
@@ -32,6 +34,7 @@ Route::prefix('auth')->group(function () {
 
 Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::get('/users', [UserController::class, 'index']);
+    Route::get('/users/{id}', [UserController::class, 'show']);
     Route::match(['put', 'post'], '/users/{id}', [UserController::class, 'update'])
         ->middleware('image.upload:profile_image,2048');
 
@@ -106,4 +109,14 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::match(['put', 'post'], '/announcements/{id}', [AnnouncementController::class, 'update']);
     Route::delete('/announcements/{id}', [AnnouncementController::class, 'destroy']);
     Route::post('/announcements/{id}/restore', [AnnouncementController::class, 'restore']);
+
+    // Subscriptions module (protected by JWT)
+    Route::get('/subscriptions', [SubscriptionController::class, 'index']);
+    Route::post('/subscriptions/bulk-delete', [SubscriptionController::class, 'bulkDestroy']);
+
+    // Contacts module (protected by JWT)
+    Route::get('/contacts', [ContactController::class, 'index']);
+    Route::post('/contacts/{id}/reply', [ContactController::class, 'reply']);
+    Route::delete('/contacts/{id}', [ContactController::class, 'destroy']);
+    Route::post('/contacts/{id}/restore', [ContactController::class, 'restore']);
 });
