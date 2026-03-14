@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\TopicFocusController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\AccountingController;
 use App\Http\Middleware\JwtAuthMiddleware;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +34,8 @@ Route::prefix('auth')->group(function () {
 });
 
 Route::middleware(JwtAuthMiddleware::class)->group(function () {
+    Route::get('/accounting', [AccountingController::class, 'index']);
+
     Route::get('/users', [UserController::class, 'index']);
     Route::get('/users/{id}', [UserController::class, 'show']);
     Route::match(['put', 'post'], '/users/{id}', [UserController::class, 'update'])
