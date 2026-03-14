@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivePackageSubscription;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -17,15 +18,18 @@ class UserController extends Controller
 
     /**
      * Get users with pagination and filters. Requires valid JWT token.
-     * Query params: text, status, gender, availability
+     * Query params: text, status, gender, availability, page, per_page
      */
     public function index(Request $request): JsonResponse
     {
-        $perPage = 10;
+        $perPage = (int) $request->query('per_page', 10);
+        $perPage = $perPage > 0 ? min($perPage, 100) : 10;
+
         $query = User::select(
             'id', 'first_name', 'last_name', 'email', 'is_email_verified',
             'profile_image', 'login_method', 'gender', 'status',
-            'last_activity_at', 'created_at'
+            'last_activity_at', 'is_online', 'created_at',
+            'is_subscribed', 'subscription_type', 'subscription_start_date', 'subscription_end_date', 'active_subscription_id'
         );
 
         if ($text = $request->query('text')) {
@@ -50,18 +54,42 @@ class UserController extends Controller
 
         if ($availability = $request->query('availability')) {
             if (strtolower($availability) === 'online') {
-                $threshold = now()->subMinutes(self::ONLINE_THRESHOLD_MINUTES);
-                $query->where('last_activity_at', '>=', $threshold);
+                $query->where('is_online', true);
+            } elseif (strtolower($availability) === 'offline') {
+                $query->where(function ($q) {
+                    $q->where('is_online', false)->orWhereNull('is_online');
+                });
             }
         }
 
         $users = $query->orderBy('id')->paginate($perPage);
+        $userIds = collect($users->items())->pluck('id')->all();
+        $activeSubsByUser = [];
+        if (!empty($userIds)) {
+            $activeSubs = ActivePackageSubscription::whereIn('user_id', $userIds)
+                ->where('status', 'Active')
+                ->orderByDesc('ends_at')
+                ->get();
+            foreach ($activeSubs as $sub) {
+                if (!isset($activeSubsByUser[$sub->user_id])) {
+                    $activeSubsByUser[$sub->user_id] = [
+                        'plan_name' => $sub->plan_name,
+                        'status' => $sub->status,
+                    ];
+                }
+            }
+        }
 
-        $usersWithAvailability = collect($users->items())->map(function ($user) {
+        $usersWithAvailability = collect($users->items())->map(function ($user) use ($activeSubsByUser) {
             $userData = $this->appendAvailability($user);
             if (!empty($userData['profile_image'])) {
                 $userData['profile_image_url'] = url($userData['profile_image']);
             }
+            $activeSub = $activeSubsByUser[$user->id] ?? null;
+            $userData['subscription_plan'] = $activeSub
+                ? $activeSub['plan_name']
+                : ($userData['subscription_type'] ?? null);
+            $userData['subscription_status'] = $activeSub ? $activeSub['status'] : (isset($userData['subscription_type']) && $userData['subscription_type'] ? 'Active' : null);
             return $userData;
         })->toArray();
 
@@ -85,33 +113,33 @@ class UserController extends Controller
     }
 
     /**
-     * Append availability status to user
+     * Append availability status to user (based on is_online; label uses last_activity_at when offline).
      */
     private function appendAvailability($user): array
     {
         $userArray = is_array($user) ? $user : $user->toArray();
+        $isOnline = (bool) ($userArray['is_online'] ?? false);
         $lastActivity = $userArray['last_activity_at'] ?? null;
 
+        if ($isOnline) {
+            $userArray['availability'] = 'online';
+            $userArray['availability_label'] = 'Just now';
+            if ($lastActivity) {
+                $lastActivity = $lastActivity instanceof \DateTimeInterface ? $lastActivity : Carbon::parse($lastActivity);
+                $userArray['last_activity_at'] = $lastActivity->toIso8601String();
+            }
+            return $userArray;
+        }
+
         if (!$lastActivity) {
-            $userArray['availability'] = null;
-            $userArray['availability_label'] = null;
+            $userArray['availability'] = 'offline';
+            $userArray['availability_label'] = 'Offline';
             return $userArray;
         }
 
         $lastActivity = $lastActivity instanceof Carbon ? $lastActivity : Carbon::parse($lastActivity);
-        $minutesAgo = $lastActivity->diffInMinutes(Carbon::now());
-
-        if ($minutesAgo <= self::JUST_NOW_THRESHOLD_MINUTES) {
-            $userArray['availability'] = 'online';
-            $userArray['availability_label'] = 'Just now';
-        } elseif ($minutesAgo <= self::ONLINE_THRESHOLD_MINUTES) {
-            $userArray['availability'] = 'online';
-            $userArray['availability_label'] = 'Online';
-        } else {
-            $userArray['availability'] = 'offline';
-            $userArray['availability_label'] = $lastActivity->diffForHumans();
-        }
-
+        $userArray['availability'] = 'offline';
+        $userArray['availability_label'] = $lastActivity->diffForHumans();
         $userArray['last_activity_at'] = $lastActivity->toIso8601String();
 
         return $userArray;
@@ -119,7 +147,7 @@ class UserController extends Controller
 
     /**
      * Update user. Requires valid JWT token.
-     * Updates: first_name, last_name, profile_image, gender
+     * Updates: first_name, last_name, profile_image, gender, status (Active/InActive)
      * Use POST with form-data for file uploads (PHP does not parse PUT form-data).
      */
     public function update(Request $request, int $id): JsonResponse
@@ -128,6 +156,7 @@ class UserController extends Controller
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'gender' => ['required', 'string', 'in:male,female,other,Male,Female,Other'],
+            'status' => ['nullable', 'string', 'in:Active,InActive'],
             'profile_image' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp', 'max:2048'],
         ], [
             'first_name.required' => 'First name is required.',
@@ -165,6 +194,10 @@ class UserController extends Controller
             'gender' => strtolower($request->input('gender')),
         ];
 
+        if ($request->filled('status')) {
+            $data['status'] = $request->input('status');
+        }
+
         if ($request->hasFile('profile_image')) {
             $uploadPath = public_path('assets/user_profiles');
             File::ensureDirectoryExists($uploadPath, 0755);
@@ -193,6 +226,84 @@ class UserController extends Controller
             'message' => 'User updated successfully.',
             'data' => [
                 'user' => $userData,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Get a single user with subscription history.
+     */
+    public function show(int $id): JsonResponse
+    {
+        $user = User::select(
+            'id',
+            'first_name',
+            'last_name',
+            'email',
+            'is_email_verified',
+            'profile_image',
+            'login_method',
+            'gender',
+            'status',
+            'last_activity_at',
+            'is_online',
+            'is_subscribed',
+            'subscription_type',
+            'subscription_start_date',
+            'subscription_end_date'
+        )->find($id);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found.',
+            ], 404);
+        }
+
+        $userData = $this->appendAvailability($user);
+        $userData['full_name'] = trim(($userData['first_name'] ?? '') . ' ' . ($userData['last_name'] ?? ''));
+        if (!empty($userData['profile_image'])) {
+            $userData['profile_image_url'] = url($userData['profile_image']);
+        }
+
+        $subscriptions = ActivePackageSubscription::where('user_id', $user->id)
+            ->orderByDesc('starts_at')
+            ->orderByDesc('id')
+            ->get();
+
+        $history = $subscriptions->map(function (ActivePackageSubscription $sub) {
+            return [
+                'id' => $sub->id,
+                'plan_name' => $sub->plan_name,
+                'amount' => $sub->amount,
+                'starts_at' => $sub->starts_at?->toIso8601String(),
+                'ends_at' => $sub->ends_at?->toIso8601String(),
+                'status' => $sub->status,
+                'reference' => $sub->reference,
+                'created_at' => $sub->created_at?->toIso8601String(),
+                'updated_at' => $sub->updated_at?->toIso8601String(),
+            ];
+        })->toArray();
+
+        $active = $subscriptions->where('status', 'Active')->values()->map(function (ActivePackageSubscription $sub) {
+            return [
+                'id' => $sub->id,
+                'plan_name' => $sub->plan_name,
+                'amount' => $sub->amount,
+                'starts_at' => $sub->starts_at?->toIso8601String(),
+                'ends_at' => $sub->ends_at?->toIso8601String(),
+                'status' => $sub->status,
+                'reference' => $sub->reference,
+            ];
+        })->toArray();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User details retrieved successfully.',
+            'data' => [
+                'user' => $userData,
+                'active_subscriptions' => $active,
+                'subscription_history' => $history,
             ],
         ], 200);
     }
