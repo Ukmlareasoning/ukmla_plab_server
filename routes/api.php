@@ -15,6 +15,10 @@ use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\TopicFocusController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\AccountingController;
+use App\Http\Controllers\Api\ScenarioController;
+use App\Http\Controllers\Api\ScenarioExamController;
+use App\Http\Controllers\Api\ScenarioQuestionController;
+use App\Http\Controllers\Api\ScenarioExamRatingController;
 use App\Http\Middleware\JwtAuthMiddleware;
 use Illuminate\Support\Facades\Route;
 
@@ -122,4 +126,31 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::post('/contacts/{id}/reply', [ContactController::class, 'reply']);
     Route::delete('/contacts/{id}', [ContactController::class, 'destroy']);
     Route::post('/contacts/{id}/restore', [ContactController::class, 'restore']);
+
+    // Scenarios module (protected by JWT)
+    Route::get('/scenarios', [ScenarioController::class, 'index']);
+    Route::post('/scenarios', [ScenarioController::class, 'store']);
+    Route::get('/scenarios/{id}', [ScenarioController::class, 'show']);
+    Route::match(['put', 'post'], '/scenarios/{id}', [ScenarioController::class, 'update']);
+    Route::delete('/scenarios/{id}', [ScenarioController::class, 'destroy']);
+    Route::post('/scenarios/{id}/restore', [ScenarioController::class, 'restore']);
+
+    // Scenario Exams module (protected by JWT)
+    Route::get('/scenario-exams', [ScenarioExamController::class, 'index']);
+    Route::post('/scenario-exams', [ScenarioExamController::class, 'store']);
+    Route::post('/scenario-exams/release-mode', [ScenarioExamController::class, 'updateReleaseMode']);
+    Route::match(['put', 'post'], '/scenario-exams/{id}', [ScenarioExamController::class, 'update']);
+    Route::delete('/scenario-exams/{id}', [ScenarioExamController::class, 'destroy']);
+    Route::post('/scenario-exams/{id}/restore', [ScenarioExamController::class, 'restore']);
+
+    // Scenario Questions module (protected by JWT)
+    Route::get('/scenario-questions', [ScenarioQuestionController::class, 'index']);
+    Route::post('/scenario-questions', [ScenarioQuestionController::class, 'store']);
+    Route::get('/scenario-questions/{id}', [ScenarioQuestionController::class, 'show']);
+    Route::match(['put', 'post'], '/scenario-questions/{id}', [ScenarioQuestionController::class, 'update']);
+    Route::delete('/scenario-questions/{id}', [ScenarioQuestionController::class, 'destroy']);
+    Route::post('/scenario-questions/{id}/restore', [ScenarioQuestionController::class, 'restore']);
+
+    // Scenario Exam Ratings (protected by JWT)
+    Route::get('/scenario-exam-ratings', [ScenarioExamRatingController::class, 'index']);
 });
