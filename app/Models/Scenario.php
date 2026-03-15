@@ -31,7 +31,8 @@ class Scenario extends Model
 
     public function examType(): BelongsTo
     {
-        return $this->belongsTo(ExamType::class, 'exam_type_id');
+        // Historically this referenced ExamType; scenarios now use NotesType as their "exam type"
+        return $this->belongsTo(NotesType::class, 'exam_type_id');
     }
 
     public function difficultyLevel(): BelongsTo

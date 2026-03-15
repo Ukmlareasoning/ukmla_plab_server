@@ -28,7 +28,8 @@ return new class extends Migration
             $table->softDeletes();
             $table->timestamps();
 
-            $table->foreign('exam_type_id')->references('id')->on('exam_types')->nullOnDelete();
+            // Link scenario \"exam type\" to notes_types so scenarios use NotesType records
+            $table->foreign('exam_type_id')->references('id')->on('notes_types')->nullOnDelete();
             $table->foreign('difficulty_level_id')->references('id')->on('difficulty_levels')->nullOnDelete();
         });
     }

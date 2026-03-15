@@ -51,6 +51,10 @@ class ScenarioExamController extends Controller
 
         $exams = $query->orderBy('exam_no', 'asc')->paginate($perPage);
 
+        // Load release mode from parent scenario so clients can decide whether to unlock all exams at once
+        $scenario = \App\Models\Scenario::find($scenarioId);
+        $releaseMode = $scenario?->exams_release_mode ?? 'all_at_once';
+
         $items = collect($exams->items())->map(fn (ScenarioExam $e) => $this->formatExam($e))->toArray();
 
         return response()->json([
@@ -58,6 +62,7 @@ class ScenarioExamController extends Controller
             'message' => 'Scenario exams retrieved successfully.',
             'data' => [
                 'scenario_exams' => $items,
+                'exams_release_mode' => $releaseMode,
                 'pagination' => [
                     'current_page' => $exams->currentPage(),
                     'last_page'    => $exams->lastPage(),
