@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Webinar;
+use App\Models\WebinarBooking;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
@@ -46,10 +47,34 @@ class WebinarController extends Controller
 
         $webinars = $query->orderBy('id', 'asc')->paginate($perPage);
 
-        $items = collect($webinars->items())->map(function (Webinar $webinar) {
+        // Load confirmed booking counts for all returned webinars in one query
+        $ids = collect($webinars->items())->pluck('id');
+        $confirmedCounts = WebinarBooking::selectRaw('webinar_id, count(*) as cnt')
+            ->whereIn('webinar_id', $ids)
+            ->where('status', 'Confirmed')
+            ->groupBy('webinar_id')
+            ->pluck('cnt', 'webinar_id');
+
+        $items = collect($webinars->items())->map(function (Webinar $webinar) use ($confirmedCounts) {
             $bannerUrl = null;
             if ($webinar->banner_image) {
                 $bannerUrl = url($webinar->banner_image);
+            }
+
+            $confirmed = (int) ($confirmedCounts[$webinar->id] ?? 0);
+            $remaining = $webinar->max_attendees !== null ? max(0, $webinar->max_attendees - $confirmed) : null;
+
+            $startTime = $webinar->start_time;
+            $endTime = $webinar->end_time;
+            if ($startTime instanceof \Carbon\CarbonInterface) {
+                $startTime = $startTime->format('H:i');
+            } elseif (is_string($startTime) && preg_match('/^\d{1,2}:\d{2}(?::\d{2})?$/', $startTime)) {
+                $startTime = substr($startTime, 0, 5);
+            }
+            if ($endTime instanceof \Carbon\CarbonInterface) {
+                $endTime = $endTime->format('H:i');
+            } elseif (is_string($endTime) && preg_match('/^\d{1,2}:\d{2}(?::\d{2})?$/', $endTime)) {
+                $endTime = substr($endTime, 0, 5);
             }
 
             return [
@@ -58,13 +83,15 @@ class WebinarController extends Controller
                 'description' => $webinar->description,
                 'startDate' => $webinar->start_date?->toDateString(),
                 'endDate' => $webinar->end_date?->toDateString(),
-                'startTime' => $webinar->start_time,
-                'endTime' => $webinar->end_time,
+                'startTime' => $startTime,
+                'endTime' => $endTime,
                 'presence' => $webinar->presence,
                 'zoomMeetingLink' => $webinar->zoom_meeting_link,
                 'address' => $webinar->address,
                 'price' => (float) $webinar->price,
                 'maxAttendees' => $webinar->max_attendees,
+                'confirmedBookings' => $confirmed,
+                'remainingSeats' => $remaining,
                 'bannerImage' => $bannerUrl,
                 'status' => $webinar->deleted_at ? 'Deleted' : $webinar->status,
                 'is_deleted' => (bool) $webinar->deleted_at,
