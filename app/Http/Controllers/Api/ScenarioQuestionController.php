@@ -24,7 +24,7 @@ class ScenarioQuestionController extends Controller
 
         $query = ScenarioQuestion::query()
             ->withTrashed()
-            ->with(['scenario:id,title', 'scenarioExam:id,exam_no', 'options'])
+            ->with(['scenario:id,title', 'scenarioExam:id,exam_no', 'options', 'aiTutor'])
             ->orderBy('id', 'desc');
 
         $applyFilters = filter_var($request->query('apply_filters', false), FILTER_VALIDATE_BOOLEAN);
@@ -55,7 +55,8 @@ class ScenarioQuestionController extends Controller
 
         $questions = $query->paginate($perPage);
 
-        $items = collect($questions->items())->map(fn (ScenarioQuestion $q) => $this->formatQuestion($q))->toArray();
+        // For user practice pages we want AI-tutor fields as well, so always include them here.
+        $items = collect($questions->items())->map(fn (ScenarioQuestion $q) => $this->formatQuestion($q, true))->toArray();
 
         return response()->json([
             'success' => true,

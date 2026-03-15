@@ -13,8 +13,8 @@ use Illuminate\Support\Facades\Validator;
 class ScenarioController extends Controller
 {
     /**
-     * List scenarios with optional filters (text, status, exam_type_id, difficulty_level_id).
-     * Query params: text, status, exam_type_id, difficulty_level_id, page, per_page, apply_filters
+     * List scenarios with optional filters (text, status, exam_type_id, exam_type_name, difficulty_level_id, topic_focus_id).
+     * Query params: text, status, exam_type_id, exam_type_name, difficulty_level_id, topic_focus_id, page, per_page, apply_filters
      */
     public function index(Request $request): JsonResponse
     {
@@ -45,8 +45,35 @@ class ScenarioController extends Controller
             if ($examTypeId = $request->query('exam_type_id')) {
                 $query->where('exam_type_id', $examTypeId);
             }
+            if ($examTypeName = $request->query('exam_type_name')) {
+                $query->whereHas('examType', function ($q) use ($examTypeName) {
+                    $q->where('name', $examTypeName);
+                });
+            }
             if ($difficultyLevelId = $request->query('difficulty_level_id')) {
                 $query->where('difficulty_level_id', $difficultyLevelId);
+            }
+            // Topic/focus: must match pivot row + active scenarios_topic_focus row (avoids ORM/soft-delete ambiguity)
+            $topicFocusId = (int) $request->query('topic_focus_id', 0);
+            $topicFocusNameRaw = $request->query('topic_focus_name');
+            $topicFocusName = is_string($topicFocusNameRaw) ? trim($topicFocusNameRaw) : '';
+            if ($topicFocusId > 0 || $topicFocusName !== '') {
+                $query->whereExists(function ($sub) use ($topicFocusId, $topicFocusName) {
+                    $sub->select(DB::raw(1))
+                        ->from('scenario_topic_focus_pivot as stfp')
+                        ->join('scenarios_topic_focus as stf', function ($join) {
+                            $join->on('stf.id', '=', 'stfp.topic_focus_id')
+                                ->whereNull('stf.deleted_at');
+                        })
+                        ->whereColumn('stfp.scenario_id', 'scenarios.id')
+                        ->where('stf.status', 'Active');
+                    if ($topicFocusId > 0) {
+                        $sub->where('stfp.topic_focus_id', $topicFocusId);
+                    }
+                    if ($topicFocusName !== '') {
+                        $sub->where('stf.name', $topicFocusName);
+                    }
+                });
             }
         }
 
@@ -78,7 +105,7 @@ class ScenarioController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'title'              => ['required', 'string', 'max:191', 'unique:scenarios,title'],
-            'exam_type_id'       => ['required', 'integer', 'exists:exam_types,id'],
+            'exam_type_id'       => ['required', 'integer', 'exists:notes_types,id'],
             'difficulty_level_id'=> ['required', 'integer', 'exists:difficulty_levels,id'],
             'icon_key'           => ['required', 'string', 'max:64'],
             'description'        => ['required', 'string'],
@@ -203,7 +230,7 @@ class ScenarioController extends Controller
 
         $validator = Validator::make($request->all(), [
             'title'              => ['required', 'string', 'max:191', 'unique:scenarios,title,' . $scenario->id],
-            'exam_type_id'       => ['required', 'integer', 'exists:exam_types,id'],
+            'exam_type_id'       => ['required', 'integer', 'exists:notes_types,id'],
             'difficulty_level_id'=> ['required', 'integer', 'exists:difficulty_levels,id'],
             'icon_key'           => ['required', 'string', 'max:64'],
             'description'        => ['required', 'string'],

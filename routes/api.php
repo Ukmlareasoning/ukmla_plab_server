@@ -42,11 +42,24 @@ Route::get('/notes-types', [NotesTypeController::class, 'index']);
 Route::get('/notes', [NoteController::class, 'index']);
 Route::get('/notes/{id}', [NoteController::class, 'show']);
 
+// Public: difficulty levels (for user scenarios filters — no auth)
+Route::get('/difficulty-levels', [DifficultyLevelController::class, 'index']);
+
+// Public: scenario topic/focus (for user scenarios filters — no auth)
+Route::get('/scenarios-topic-focuses', [ScenarioTopicFocusController::class, 'index']);
+
+// Public: scenarios list (for user Scenarios page — no auth)
+Route::get('/scenarios', [ScenarioController::class, 'index']);
+
 // Public: list services (for User Other Services page — no auth)
 Route::get('/services', [ServiceController::class, 'index']);
 
 // Public: list webinars (for User Webinars page — no auth)
 Route::get('/webinars', [WebinarController::class, 'index']);
+
+// Public: list scenario exams and questions (for user Scenario Practice pages — no auth)
+Route::get('/scenario-exams', [ScenarioExamController::class, 'index']);
+Route::get('/scenario-questions', [ScenarioQuestionController::class, 'index']);
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
@@ -85,8 +98,7 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::delete('/topic-focuses/{id}', [TopicFocusController::class, 'destroy']);
     Route::post('/topic-focuses/{id}/restore', [TopicFocusController::class, 'restore']);
 
-    // Scenario Topic / Focus module (protected by JWT)
-    Route::get('/scenarios-topic-focuses', [ScenarioTopicFocusController::class, 'index']);
+    // Scenario Topic / Focus module (protected by JWT) — GET is public above
     Route::post('/scenarios-topic-focuses', [ScenarioTopicFocusController::class, 'store']);
     Route::match(['put', 'post'], '/scenarios-topic-focuses/{id}', [ScenarioTopicFocusController::class, 'update']);
     Route::delete('/scenarios-topic-focuses/{id}', [ScenarioTopicFocusController::class, 'destroy']);
@@ -105,8 +117,7 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::delete('/static-pages/{id}', [StaticPageController::class, 'destroy']);
     Route::post('/static-pages/{id}/restore', [StaticPageController::class, 'restore']);
 
-    // Difficulty Levels module (protected by JWT)
-    Route::get('/difficulty-levels', [DifficultyLevelController::class, 'index']);
+    // Difficulty Levels module (protected by JWT) — GET is public above
     Route::post('/difficulty-levels', [DifficultyLevelController::class, 'store']);
     Route::match(['put', 'post'], '/difficulty-levels/{id}', [DifficultyLevelController::class, 'update']);
     Route::delete('/difficulty-levels/{id}', [DifficultyLevelController::class, 'destroy']);
@@ -156,24 +167,21 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::delete('/contacts/{id}', [ContactController::class, 'destroy']);
     Route::post('/contacts/{id}/restore', [ContactController::class, 'restore']);
 
-    // Scenarios module (protected by JWT)
-    Route::get('/scenarios', [ScenarioController::class, 'index']);
+    // Scenarios module (protected by JWT) — GET is public above
     Route::post('/scenarios', [ScenarioController::class, 'store']);
     Route::get('/scenarios/{id}', [ScenarioController::class, 'show']);
     Route::match(['put', 'post'], '/scenarios/{id}', [ScenarioController::class, 'update']);
     Route::delete('/scenarios/{id}', [ScenarioController::class, 'destroy']);
     Route::post('/scenarios/{id}/restore', [ScenarioController::class, 'restore']);
 
-    // Scenario Exams module (protected by JWT)
-    Route::get('/scenario-exams', [ScenarioExamController::class, 'index']);
+    // Scenario Exams module
     Route::post('/scenario-exams', [ScenarioExamController::class, 'store']);
     Route::post('/scenario-exams/release-mode', [ScenarioExamController::class, 'updateReleaseMode']);
     Route::match(['put', 'post'], '/scenario-exams/{id}', [ScenarioExamController::class, 'update']);
     Route::delete('/scenario-exams/{id}', [ScenarioExamController::class, 'destroy']);
     Route::post('/scenario-exams/{id}/restore', [ScenarioExamController::class, 'restore']);
 
-    // Scenario Questions module (protected by JWT)
-    Route::get('/scenario-questions', [ScenarioQuestionController::class, 'index']);
+    // Scenario Questions module (protected by JWT) — GET list is public above
     Route::post('/scenario-questions', [ScenarioQuestionController::class, 'store']);
     Route::get('/scenario-questions/{id}', [ScenarioQuestionController::class, 'show']);
     Route::match(['put', 'post'], '/scenario-questions/{id}', [ScenarioQuestionController::class, 'update']);
