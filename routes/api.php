@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\StaticPageController;
 use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\WebinarController;
 use App\Http\Controllers\Api\NoteController;
+use App\Http\Controllers\Api\WebinarBookingController;
 use App\Http\Controllers\Api\DifficultyLevelController;
 use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\ContactController;
@@ -35,6 +36,17 @@ Route::post('/contacts', [ContactController::class, 'store']);
 
 // Public: newsletter/subscribe form (insert into subscriptions table)
 Route::post('/subscriptions', [SubscriptionController::class, 'store']);
+
+// Public: notes (for User Notes page and NoteDetails — no auth)
+Route::get('/notes-types', [NotesTypeController::class, 'index']);
+Route::get('/notes', [NoteController::class, 'index']);
+Route::get('/notes/{id}', [NoteController::class, 'show']);
+
+// Public: list services (for User Other Services page — no auth)
+Route::get('/services', [ServiceController::class, 'index']);
+
+// Public: list webinars (for User Webinars page — no auth)
+Route::get('/webinars', [WebinarController::class, 'index']);
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
@@ -80,8 +92,7 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::delete('/scenarios-topic-focuses/{id}', [ScenarioTopicFocusController::class, 'destroy']);
     Route::post('/scenarios-topic-focuses/{id}/restore', [ScenarioTopicFocusController::class, 'restore']);
 
-    // Notes Types module (protected by JWT)
-    Route::get('/notes-types', [NotesTypeController::class, 'index']);
+    // Notes Types module (protected by JWT) — GET /notes-types is public above
     Route::post('/notes-types', [NotesTypeController::class, 'store']);
     Route::match(['put', 'post'], '/notes-types/{id}', [NotesTypeController::class, 'update']);
     Route::delete('/notes-types/{id}', [NotesTypeController::class, 'destroy']);
@@ -101,24 +112,25 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::delete('/difficulty-levels/{id}', [DifficultyLevelController::class, 'destroy']);
     Route::post('/difficulty-levels/{id}/restore', [DifficultyLevelController::class, 'restore']);
 
-    // Services module (protected by JWT)
-    Route::get('/services', [ServiceController::class, 'index']);
+    // Services module (protected by JWT) — GET /services is public above
     Route::post('/services', [ServiceController::class, 'store']);
     Route::match(['put', 'post'], '/services/{id}', [ServiceController::class, 'update']);
     Route::delete('/services/{id}', [ServiceController::class, 'destroy']);
     Route::post('/services/{id}/restore', [ServiceController::class, 'restore']);
 
-    // Webinars module (protected by JWT)
-    Route::get('/webinars', [WebinarController::class, 'index']);
+    // Webinars module (protected by JWT) — GET /webinars is public above
     Route::post('/webinars', [WebinarController::class, 'store'])->middleware('image.upload:banner_image,5120');
     Route::match(['put', 'post'], '/webinars/{id}', [WebinarController::class, 'update'])->middleware('image.upload:banner_image,5120');
     Route::delete('/webinars/{id}', [WebinarController::class, 'destroy']);
     Route::post('/webinars/{id}/restore', [WebinarController::class, 'restore']);
 
-    // Notes module (protected by JWT)
-    Route::get('/notes', [NoteController::class, 'index']);
+    // Webinar bookings (protected by JWT)
+    Route::get('/webinars/my-bookings', [WebinarBookingController::class, 'myBookings']);
+    Route::post('/webinars/{id}/book', [WebinarBookingController::class, 'store']);
+    Route::get('/webinars/{id}/bookings', [WebinarBookingController::class, 'index']);
+
+    // Notes module (protected by JWT) — GET /notes and GET /notes/{id} are public above
     Route::post('/notes', [NoteController::class, 'store']);
-    Route::get('/notes/{id}', [NoteController::class, 'show']);
     Route::match(['put', 'post'], '/notes/{id}', [NoteController::class, 'update']);
     Route::delete('/notes/{id}', [NoteController::class, 'destroy']);
     Route::post('/notes/{id}/restore', [NoteController::class, 'restore']);

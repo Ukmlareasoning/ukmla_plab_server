@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Webinar extends Model
@@ -36,5 +37,10 @@ class Webinar extends Model
         'end_time' => 'datetime:H:i',
         'price' => 'decimal:2',
     ];
+
+    public function bookings(): HasMany
+    {
+        return $this->hasMany(WebinarBooking::class);
+    }
 }
 
