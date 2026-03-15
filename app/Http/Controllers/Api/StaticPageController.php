@@ -12,14 +12,16 @@ class StaticPageController extends Controller
 {
     /**
      * List static pages with optional text and page filters.
-     * Query params: text, page_type, page, per_page, apply_filters
+     * Query params: text, page_type, page, per_page, apply_filters, active
+     * When active=1 only non-deleted (active) pages are returned.
      */
     public function index(Request $request): JsonResponse
     {
         $perPage = (int) $request->query('per_page', 10);
         $perPage = $perPage > 0 ? min($perPage, 100) : 10;
 
-        $query = StaticPage::query()->withTrashed();
+        $activeOnly = filter_var($request->query('active', false), FILTER_VALIDATE_BOOLEAN);
+        $query = $activeOnly ? StaticPage::query() : StaticPage::query()->withTrashed();
 
         $applyFilters = filter_var($request->query('apply_filters', false), FILTER_VALIDATE_BOOLEAN);
 
@@ -82,14 +84,13 @@ class StaticPageController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'icon_key' => ['required', 'string', 'max:100'],
-            'page' => ['required', 'string', 'max:191', 'unique:static_pages,page'],
+            'page' => ['required', 'string', 'max:191'],
             'title' => ['required', 'string', 'max:191'],
             'description' => ['required', 'string'],
         ], [
             'icon_key.required' => 'Icon is required.',
             'icon_key.max' => 'Icon key must not exceed 100 characters.',
             'page.required' => 'Page is required.',
-            'page.unique' => 'A static page for this type already exists.',
             'title.required' => 'Title is required.',
             'title.max' => 'Title must not exceed 191 characters.',
             'description.required' => 'Description is required.',
@@ -179,14 +180,13 @@ class StaticPageController extends Controller
 
         $validator = Validator::make($request->all(), [
             'icon_key' => ['required', 'string', 'max:100'],
-            'page' => ['required', 'string', 'max:191', 'unique:static_pages,page,' . $page->id],
+            'page' => ['required', 'string', 'max:191'],
             'title' => ['required', 'string', 'max:191'],
             'description' => ['required', 'string'],
         ], [
             'icon_key.required' => 'Icon is required.',
             'icon_key.max' => 'Icon key must not exceed 100 characters.',
             'page.required' => 'Page is required.',
-            'page.unique' => 'A static page for this type already exists.',
             'title.required' => 'Title is required.',
             'title.max' => 'Title must not exceed 191 characters.',
             'description.required' => 'Description is required.',

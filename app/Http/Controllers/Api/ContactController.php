@@ -11,6 +11,60 @@ use Illuminate\Support\Facades\Validator;
 class ContactController extends Controller
 {
     /**
+     * Store a new contact (public; no auth required).
+     * Body: full_name, email, subject, message
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'full_name' => ['required', 'string', 'max:191'],
+            'email' => ['required', 'email', 'max:191'],
+            'subject' => ['required', 'string', 'max:191'],
+            'message' => ['required', 'string', 'max:65535'],
+        ], [
+            'full_name.required' => 'Your name is required.',
+            'full_name.max' => 'Name must not exceed 191 characters.',
+            'email.required' => 'Email address is required.',
+            'email.email' => 'Please enter a valid email address.',
+            'email.max' => 'Email must not exceed 191 characters.',
+            'subject.required' => 'Subject is required.',
+            'subject.max' => 'Subject must not exceed 191 characters.',
+            'message.required' => 'Message is required.',
+            'message.max' => 'Message is too long.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $contact = Contact::create([
+            'full_name' => $request->input('full_name'),
+            'email' => $request->input('email'),
+            'subject' => $request->input('subject'),
+            'message' => $request->input('message'),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Your message has been sent. We will get back to you soon.',
+            'data' => [
+                'contact' => [
+                    'id' => $contact->id,
+                    'full_name' => $contact->full_name,
+                    'email' => $contact->email,
+                    'subject' => $contact->subject,
+                    'message' => $contact->message,
+                    'created_at' => $contact->created_at?->toIso8601String(),
+                ],
+            ],
+        ], 201);
+    }
+
+    /**
      * List contacts with optional text and status filters.
      * Query params: text, status, page, per_page, apply_filters
      */
