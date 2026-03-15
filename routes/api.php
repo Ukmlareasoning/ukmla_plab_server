@@ -23,8 +23,18 @@ use App\Http\Controllers\Api\MockController;
 use App\Http\Controllers\Api\MockExamController;
 use App\Http\Controllers\Api\MockQuestionController;
 use App\Http\Controllers\Api\MockExamRatingController;
+use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Middleware\JwtAuthMiddleware;
 use Illuminate\Support\Facades\Route;
+
+// Public: list static pages (for How It Works, Privacy Policy, etc.)
+Route::get('/static-pages', [StaticPageController::class, 'index']);
+
+// Public: submit contact form (insert into contacts table)
+Route::post('/contacts', [ContactController::class, 'store']);
+
+// Public: newsletter/subscribe form (insert into subscriptions table)
+Route::post('/subscriptions', [SubscriptionController::class, 'store']);
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
@@ -77,8 +87,7 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::delete('/notes-types/{id}', [NotesTypeController::class, 'destroy']);
     Route::post('/notes-types/{id}/restore', [NotesTypeController::class, 'restore']);
 
-    // Static Pages module (protected by JWT)
-    Route::get('/static-pages', [StaticPageController::class, 'index']);
+    // Static Pages module (protected by JWT; GET /static-pages is public above)
     Route::post('/static-pages', [StaticPageController::class, 'store']);
     Route::get('/static-pages/{id}', [StaticPageController::class, 'show']);
     Route::match(['put', 'post'], '/static-pages/{id}', [StaticPageController::class, 'update']);
@@ -124,6 +133,10 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     // Subscriptions module (protected by JWT)
     Route::get('/subscriptions', [SubscriptionController::class, 'index']);
     Route::post('/subscriptions/bulk-delete', [SubscriptionController::class, 'bulkDestroy']);
+
+    // Activity Logs module (protected by JWT)
+    Route::get('/activity-logs', [ActivityLogController::class, 'index']);
+    Route::post('/activity-logs/bulk-delete', [ActivityLogController::class, 'bulkDestroy']);
 
     // Contacts module (protected by JWT)
     Route::get('/contacts', [ContactController::class, 'index']);

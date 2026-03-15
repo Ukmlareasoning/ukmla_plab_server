@@ -11,6 +11,55 @@ use Illuminate\Support\Facades\Validator;
 class SubscriptionController extends Controller
 {
     /**
+     * Store a new subscription (public; no auth required).
+     * Body: { email: string }
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'email', 'max:191'],
+        ], [
+            'email.required' => 'Email is required.',
+            'email.email' => 'Please enter a valid email address.',
+            'email.max' => 'Email must not exceed 191 characters.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $email = $request->input('email');
+
+        if (Subscription::where('email', $email)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This email is already subscribed.',
+                'errors' => [
+                    'email' => ['This email is already subscribed.'],
+                ],
+            ], 422);
+        }
+
+        $subscription = Subscription::create(['email' => $email]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'You are now subscribed. We will send you tips and updates.',
+            'data' => [
+                'subscription' => [
+                    'id' => $subscription->id,
+                    'email' => $subscription->email,
+                    'created_at' => $subscription->created_at?->toIso8601String(),
+                ],
+            ],
+        ], 201);
+    }
+
+    /**
      * List subscriptions with optional text filter (email search).
      * Query params: text, page, per_page, apply_filters
      */
