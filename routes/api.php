@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\MockController;
 use App\Http\Controllers\Api\MockExamController;
 use App\Http\Controllers\Api\MockQuestionController;
 use App\Http\Controllers\Api\MockExamRatingController;
+use App\Http\Controllers\Api\MockUserAnswerController;
 use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Middleware\JwtAuthMiddleware;
 use Illuminate\Support\Facades\Route;
@@ -62,6 +63,13 @@ Route::get('/webinars', [WebinarController::class, 'index']);
 Route::get('/scenario-exams', [ScenarioExamController::class, 'index']);
 Route::get('/scenario-questions', [ScenarioQuestionController::class, 'index']);
 
+// Public: mocks list and related data (for user Mocks/Courses pages — no auth required)
+Route::get('/mocks', [MockController::class, 'index']);
+Route::get('/mock-exams', [MockExamController::class, 'index']);
+Route::get('/mock-questions', [MockQuestionController::class, 'index']);
+Route::get('/exam-types', [ExamTypeController::class, 'index']);
+Route::get('/topic-focuses', [TopicFocusController::class, 'index']);
+
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
@@ -85,15 +93,13 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::match(['put', 'post'], '/users/{id}', [UserController::class, 'update'])
         ->middleware('image.upload:profile_image,2048');
 
-    // Exam Types module (protected by JWT)
-    Route::get('/exam-types', [ExamTypeController::class, 'index']);
+    // Exam Types module (protected by JWT) — GET /exam-types is now public above
     Route::post('/exam-types', [ExamTypeController::class, 'store']);
     Route::match(['put', 'post'], '/exam-types/{id}', [ExamTypeController::class, 'update']);
     Route::delete('/exam-types/{id}', [ExamTypeController::class, 'destroy']);
     Route::post('/exam-types/{id}/restore', [ExamTypeController::class, 'restore']);
 
-    // Topic / Focus module (protected by JWT)
-    Route::get('/topic-focuses', [TopicFocusController::class, 'index']);
+    // Topic / Focus module (protected by JWT) — GET /topic-focuses is now public above
     Route::post('/topic-focuses', [TopicFocusController::class, 'store']);
     Route::match(['put', 'post'], '/topic-focuses/{id}', [TopicFocusController::class, 'update']);
     Route::delete('/topic-focuses/{id}', [TopicFocusController::class, 'destroy']);
@@ -199,8 +205,16 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::post('/scenario-user-answers', [ScenarioUserAnswerController::class, 'store']);
     Route::get('/scenario-user-progress', [ScenarioUserAnswerController::class, 'progress']);
 
-    // Mocks module (protected by JWT)
-    Route::get('/mocks', [MockController::class, 'index']);
+    // Mock User Answers & Progress (protected by JWT)
+    Route::get('/mock-user-answers', [MockUserAnswerController::class, 'index']);
+    Route::post('/mock-user-answers', [MockUserAnswerController::class, 'store']);
+    Route::get('/mock-user-progress', [MockUserAnswerController::class, 'progress']);
+
+    // Mock Exam Ratings — store and my-rating (protected by JWT); GET list is now public above
+    Route::post('/mock-exam-ratings', [MockExamRatingController::class, 'store']);
+    Route::get('/mock-exam-ratings/my-rating', [MockExamRatingController::class, 'myRating']);
+
+    // Mocks module (protected by JWT) — GET /mocks is now public above
     Route::post('/mocks', [MockController::class, 'store']);
     Route::get('/mocks/{id}', [MockController::class, 'show']);
     Route::put('/mocks/{id}/pricing', [MockController::class, 'updatePricing']);
@@ -208,22 +222,20 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::delete('/mocks/{id}', [MockController::class, 'destroy']);
     Route::post('/mocks/{id}/restore', [MockController::class, 'restore']);
 
-    // Mock Exams module (protected by JWT)
-    Route::get('/mock-exams', [MockExamController::class, 'index']);
+    // Mock Exams module (protected by JWT) — GET /mock-exams is now public above
     Route::post('/mock-exams', [MockExamController::class, 'store']);
     Route::post('/mock-exams/release-mode', [MockExamController::class, 'updateReleaseMode']);
     Route::match(['put', 'post'], '/mock-exams/{id}', [MockExamController::class, 'update']);
     Route::delete('/mock-exams/{id}', [MockExamController::class, 'destroy']);
     Route::post('/mock-exams/{id}/restore', [MockExamController::class, 'restore']);
 
-    // Mock Questions module (protected by JWT)
-    Route::get('/mock-questions', [MockQuestionController::class, 'index']);
+    // Mock Questions module (protected by JWT) — GET /mock-questions is now public above
     Route::post('/mock-questions', [MockQuestionController::class, 'store']);
     Route::get('/mock-questions/{id}', [MockQuestionController::class, 'show']);
     Route::match(['put', 'post'], '/mock-questions/{id}', [MockQuestionController::class, 'update']);
     Route::delete('/mock-questions/{id}', [MockQuestionController::class, 'destroy']);
     Route::post('/mock-questions/{id}/restore', [MockQuestionController::class, 'restore']);
 
-    // Mock Exam Ratings (protected by JWT)
+    // Mock Exam Ratings — GET list (protected by JWT)
     Route::get('/mock-exam-ratings', [MockExamRatingController::class, 'index']);
 });
