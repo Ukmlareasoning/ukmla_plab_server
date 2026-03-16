@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\ScenarioController;
 use App\Http\Controllers\Api\ScenarioExamController;
 use App\Http\Controllers\Api\ScenarioQuestionController;
 use App\Http\Controllers\Api\ScenarioExamRatingController;
+use App\Http\Controllers\Api\ScenarioUserAnswerController;
 use App\Http\Controllers\Api\MockController;
 use App\Http\Controllers\Api\MockExamController;
 use App\Http\Controllers\Api\MockQuestionController;
@@ -190,6 +191,13 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
 
     // Scenario Exam Ratings (protected by JWT)
     Route::get('/scenario-exam-ratings', [ScenarioExamRatingController::class, 'index']);
+    Route::post('/scenario-exam-ratings', [ScenarioExamRatingController::class, 'store']);
+    Route::get('/scenario-exam-ratings/my-rating', [ScenarioExamRatingController::class, 'myRating']);
+
+    // Scenario User Answers & Progress (protected by JWT)
+    Route::get('/scenario-user-answers', [ScenarioUserAnswerController::class, 'index']);
+    Route::post('/scenario-user-answers', [ScenarioUserAnswerController::class, 'store']);
+    Route::get('/scenario-user-progress', [ScenarioUserAnswerController::class, 'progress']);
 
     // Mocks module (protected by JWT)
     Route::get('/mocks', [MockController::class, 'index']);
