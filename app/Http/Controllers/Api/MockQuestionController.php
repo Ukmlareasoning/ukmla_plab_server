@@ -20,7 +20,7 @@ class MockQuestionController extends Controller
 
         $query = MockQuestion::query()
             ->withTrashed()
-            ->with(['mock:id,title', 'mockExam:id,exam_no', 'options'])
+            ->with(['mock:id,title', 'mockExam:id,exam_no', 'options', 'aiTutor'])
             ->orderBy('id', 'desc');
 
         $applyFilters = filter_var($request->query('apply_filters', false), FILTER_VALIDATE_BOOLEAN);
@@ -50,7 +50,7 @@ class MockQuestionController extends Controller
 
         $questions = $query->paginate($perPage);
 
-        $items = collect($questions->items())->map(fn (MockQuestion $q) => $this->formatQuestion($q))->toArray();
+        $items = collect($questions->items())->map(fn (MockQuestion $q) => $this->formatQuestion($q, true))->toArray();
 
         return response()->json([
             'success' => true,
