@@ -214,11 +214,23 @@ class ScenarioUserAnswerController extends Controller
 
         $result = $scenarios->map(function ($scenario) use ($userId) {
             // Question-based stats
-            $answeredQuestions = ScenarioUserAnswer::where('user_id', $userId)
-                ->where('scenario_id', $scenario->id)
+            $userAnswersQuery = ScenarioUserAnswer::where('user_id', $userId)
+                ->where('scenario_id', $scenario->id);
+
+            $answeredQuestions = $userAnswersQuery->count();
+            $totalQuestions    = $scenario->total_questions ?? 0;
+
+            // How many answers are correct (or open‑ended, where is_correct is null)
+            $correctQuestions = (clone $userAnswersQuery)
+                ->where(function ($q) {
+                    $q->where('is_correct', true)
+                        ->orWhereNull('is_correct');
+                })
                 ->count();
 
-            $totalQuestions = $scenario->total_questions ?? 0;
+            $obtainedPct = $totalQuestions > 0
+                ? round(($correctQuestions / $totalQuestions) * 100)
+                : 0;
 
             // Exam-based stats: how many scenario exams practised at least once
             $totalExams = ScenarioExam::where('scenario_id', $scenario->id)
@@ -248,6 +260,8 @@ class ScenarioUserAnswerController extends Controller
                 'attempted_exams'       => $attemptedExams,
                 // This percentage is exam-based: how many exams practised out of total exams
                 'progress_percentage'   => $progressPct,
+                // Overall obtained % based on questions (correct / total)
+                'obtained_percentage'   => $obtainedPct,
                 'is_completed'          => $progressPct >= 100,
             ];
         });
