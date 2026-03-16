@@ -205,13 +205,26 @@ class MockUserAnswerController extends Controller
             ->get();
 
         $result = $mocks->map(function ($mock) use ($userId) {
-            $answeredQuestions = MockUserAnswer::where('user_id', $userId)
-                ->where('mock_id', $mock->id)
-                ->count();
+            $userAnswersQuery = MockUserAnswer::where('user_id', $userId)
+                ->where('mock_id', $mock->id);
+
+            $answeredQuestions = $userAnswersQuery->count();
 
             $totalQuestions = MockQuestion::where('mock_id', $mock->id)
                 ->where('status', 'Active')
                 ->count();
+
+            // How many answers are correct (or open‑ended, where is_correct is null)
+            $correctQuestions = (clone $userAnswersQuery)
+                ->where(function ($q) {
+                    $q->where('is_correct', true)
+                        ->orWhereNull('is_correct');
+                })
+                ->count();
+
+            $obtainedPct = $totalQuestions > 0
+                ? round(($correctQuestions / $totalQuestions) * 100)
+                : 0;
 
             $totalExams = MockExam::where('mock_id', $mock->id)
                 ->where('status', 'Active')
@@ -241,6 +254,8 @@ class MockUserAnswerController extends Controller
                 'total_exams'           => $totalExams,
                 'attempted_exams'       => $attemptedExams,
                 'progress_percentage'   => $progressPct,
+                // Overall obtained % based on questions (correct / total)
+                'obtained_percentage'   => $obtainedPct,
                 'is_completed'          => $progressPct >= 100,
             ];
         });
