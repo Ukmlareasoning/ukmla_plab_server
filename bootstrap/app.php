@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'jwt.auth' => \App\Http\Middleware\JwtAuthMiddleware::class,
             'image.upload' => \App\Http\Middleware\ImageUploadMiddleware::class,
+            'module.access' => \App\Http\Middleware\AdminModuleAccessMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
