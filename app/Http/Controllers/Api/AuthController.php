@@ -331,6 +331,13 @@ class AuthController extends Controller
             ], 403);
         }
 
+        if ($user->user_status === 'sub-admin' && ($user->status ?? 'Active') !== 'Active') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Your sub-admin account is inactive. Please contact administrator.',
+            ], 403);
+        }
+
         $token = $this->generateJwtToken($user);
 
         $user->update([
@@ -349,6 +356,8 @@ class AuthController extends Controller
                     'email' => $user->email,
                     'profile_image' => $user->profile_image,
                     'user_status' => $user->user_status,
+                    'status' => $user->status,
+                    'admin_module_access' => is_array($user->admin_module_access) ? $user->admin_module_access : [],
                 ],
                 'token' => $token,
                 'token_type' => 'Bearer',
