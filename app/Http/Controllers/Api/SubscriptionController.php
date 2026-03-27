@@ -34,7 +34,8 @@ class SubscriptionController extends Controller
 
         $email = $request->input('email');
 
-        if (Subscription::where('email', $email)->exists()) {
+        $existing = Subscription::withTrashed()->where('email', $email)->first();
+        if ($existing && !$existing->trashed()) {
             return response()->json([
                 'success' => false,
                 'message' => 'This email is already subscribed.',
@@ -42,6 +43,21 @@ class SubscriptionController extends Controller
                     'email' => ['This email is already subscribed.'],
                 ],
             ], 422);
+        }
+
+        if ($existing && $existing->trashed()) {
+            $existing->restore();
+            return response()->json([
+                'success' => true,
+                'message' => 'You are now subscribed. We will send you tips and updates.',
+                'data' => [
+                    'subscription' => [
+                        'id' => $existing->id,
+                        'email' => $existing->email,
+                        'created_at' => $existing->created_at?->toIso8601String(),
+                    ],
+                ],
+            ], 200);
         }
 
         $subscription = Subscription::create(['email' => $email]);
@@ -68,7 +84,7 @@ class SubscriptionController extends Controller
         $perPage = (int) $request->query('per_page', 10);
         $perPage = $perPage > 0 ? min($perPage, 100) : 10;
 
-        $query = Subscription::query();
+        $query = Subscription::query()->withTrashed();
 
         $applyFilters = filter_var($request->query('apply_filters', false), FILTER_VALIDATE_BOOLEAN);
 
@@ -76,6 +92,13 @@ class SubscriptionController extends Controller
             if ($text = $request->query('text')) {
                 $searchTerm = '%' . $text . '%';
                 $query->where('email', 'like', $searchTerm);
+            }
+            if ($status = $request->query('status')) {
+                if ($status === 'Deleted') {
+                    $query->onlyTrashed();
+                } else {
+                    $query->whereNull('deleted_at');
+                }
             }
         }
 
@@ -85,8 +108,11 @@ class SubscriptionController extends Controller
             return [
                 'id' => $subscription->id,
                 'email' => $subscription->email,
+                'status' => $subscription->deleted_at ? 'Deleted' : 'Active',
+                'is_deleted' => (bool) $subscription->deleted_at,
                 'created_at' => $subscription->created_at?->toIso8601String(),
                 'updated_at' => $subscription->updated_at?->toIso8601String(),
+                'deleted_at' => $subscription->deleted_at?->toIso8601String(),
             ];
         })->toArray();
 
@@ -110,7 +136,7 @@ class SubscriptionController extends Controller
     }
 
     /**
-     * Permanently delete selected subscriptions by ids.
+     * Soft delete selected subscriptions by ids.
      * Body: { ids: [1, 2, 3] }
      */
     public function bulkDestroy(Request $request): JsonResponse
@@ -132,15 +158,50 @@ class SubscriptionController extends Controller
         }
 
         $ids = $request->input('ids');
-        $deleted = Subscription::whereIn('id', $ids)->delete();
+        $deleted = Subscription::whereIn('id', $ids)->whereNull('deleted_at')->delete();
 
         return response()->json([
             'success' => true,
             'message' => $deleted === 1
-                ? '1 subscription deleted permanently.'
-                : $deleted . ' subscriptions deleted permanently.',
+                ? '1 subscription deleted successfully.'
+                : $deleted . ' subscriptions deleted successfully.',
             'data' => [
                 'deleted_count' => $deleted,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Restore selected soft-deleted subscriptions by ids.
+     * Body: { ids: [1, 2, 3] }
+     */
+    public function bulkRestore(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'ids' => ['required', 'array'],
+            'ids.*' => ['required', 'integer'],
+        ], [
+            'ids.required' => 'No subscriptions selected.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $ids = $request->input('ids');
+        $restored = Subscription::onlyTrashed()->whereIn('id', $ids)->restore();
+
+        return response()->json([
+            'success' => true,
+            'message' => $restored === 1
+                ? '1 subscription restored successfully.'
+                : $restored . ' subscriptions restored successfully.',
+            'data' => [
+                'restored_count' => $restored,
             ],
         ], 200);
     }

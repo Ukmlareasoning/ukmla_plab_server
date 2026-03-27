@@ -152,9 +152,9 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::post('/webinars/{id}/restore', [WebinarController::class, 'restore'])->middleware('module.access:webinars');
 
     // Webinar bookings (protected by JWT)
-    Route::get('/webinars/my-bookings', [WebinarBookingController::class, 'myBookings'])->middleware('module.access:webinars');
-    Route::post('/webinars/{id}/book', [WebinarBookingController::class, 'store'])->middleware('module.access:webinars');
-    Route::get('/webinars/{id}/bookings', [WebinarBookingController::class, 'index'])->middleware('module.access:webinars');
+    Route::get('/webinars/my-bookings', [WebinarBookingController::class, 'myBookings']);
+    Route::post('/webinars/{id}/book', [WebinarBookingController::class, 'store']);
+    Route::get('/webinars/{id}/bookings', [WebinarBookingController::class, 'index']);
 
     // Notes module (protected by JWT) — GET /notes and GET /notes/{id} are public above
     Route::post('/notes', [NoteController::class, 'store'])->middleware('module.access:notes');
@@ -163,7 +163,7 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::post('/notes/{id}/restore', [NoteController::class, 'restore'])->middleware('module.access:notes');
 
     // Announcements module (protected by JWT)
-    Route::get('/announcements', [AnnouncementController::class, 'index'])->middleware('module.access:announcements');
+    Route::get('/announcements', [AnnouncementController::class, 'index']);
     Route::post('/announcements', [AnnouncementController::class, 'store'])->middleware('module.access:announcements');
     Route::match(['put', 'post'], '/announcements/{id}', [AnnouncementController::class, 'update'])->middleware('module.access:announcements');
     Route::delete('/announcements/{id}', [AnnouncementController::class, 'destroy'])->middleware('module.access:announcements');
@@ -172,10 +172,12 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     // Subscriptions module (protected by JWT)
     Route::get('/subscriptions', [SubscriptionController::class, 'index'])->middleware('module.access:subscriptions');
     Route::post('/subscriptions/bulk-delete', [SubscriptionController::class, 'bulkDestroy'])->middleware('module.access:subscriptions');
+    Route::post('/subscriptions/bulk-restore', [SubscriptionController::class, 'bulkRestore'])->middleware('module.access:subscriptions');
 
     // Activity Logs module (protected by JWT)
     Route::get('/activity-logs', [ActivityLogController::class, 'index'])->middleware('module.access:activity_log');
     Route::post('/activity-logs/bulk-delete', [ActivityLogController::class, 'bulkDestroy'])->middleware('module.access:activity_log');
+    Route::post('/activity-logs/bulk-restore', [ActivityLogController::class, 'bulkRestore'])->middleware('module.access:activity_log');
 
     // Contacts module (protected by JWT)
     Route::get('/contacts', [ContactController::class, 'index'])->middleware('module.access:contacts');
@@ -205,23 +207,23 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::post('/scenario-questions/{id}/restore', [ScenarioQuestionController::class, 'restore'])->middleware('module.access:scenarios');
 
     // Scenario Exam Ratings (protected by JWT)
-    Route::get('/scenario-exam-ratings', [ScenarioExamRatingController::class, 'index'])->middleware('module.access:scenarios');
-    Route::post('/scenario-exam-ratings', [ScenarioExamRatingController::class, 'store'])->middleware('module.access:scenarios');
-    Route::get('/scenario-exam-ratings/my-rating', [ScenarioExamRatingController::class, 'myRating'])->middleware('module.access:scenarios');
+    Route::get('/scenario-exam-ratings', [ScenarioExamRatingController::class, 'index']);
+    Route::post('/scenario-exam-ratings', [ScenarioExamRatingController::class, 'store']);
+    Route::get('/scenario-exam-ratings/my-rating', [ScenarioExamRatingController::class, 'myRating']);
 
     // Scenario User Answers & Progress (protected by JWT)
-    Route::get('/scenario-user-answers', [ScenarioUserAnswerController::class, 'index'])->middleware('module.access:scenarios');
-    Route::post('/scenario-user-answers', [ScenarioUserAnswerController::class, 'store'])->middleware('module.access:scenarios');
-    Route::get('/scenario-user-progress', [ScenarioUserAnswerController::class, 'progress'])->middleware('module.access:scenarios');
+    Route::get('/scenario-user-answers', [ScenarioUserAnswerController::class, 'index']);
+    Route::post('/scenario-user-answers', [ScenarioUserAnswerController::class, 'store']);
+    Route::get('/scenario-user-progress', [ScenarioUserAnswerController::class, 'progress']);
 
     // Mock User Answers & Progress (protected by JWT)
-    Route::get('/mock-user-answers', [MockUserAnswerController::class, 'index'])->middleware('module.access:mocks');
-    Route::post('/mock-user-answers', [MockUserAnswerController::class, 'store'])->middleware('module.access:mocks');
-    Route::get('/mock-user-progress', [MockUserAnswerController::class, 'progress'])->middleware('module.access:mocks');
+    Route::get('/mock-user-answers', [MockUserAnswerController::class, 'index']);
+    Route::post('/mock-user-answers', [MockUserAnswerController::class, 'store']);
+    Route::get('/mock-user-progress', [MockUserAnswerController::class, 'progress']);
 
     // Mock Exam Ratings — store and my-rating (protected by JWT); GET list is now public above
-    Route::post('/mock-exam-ratings', [MockExamRatingController::class, 'store'])->middleware('module.access:mocks');
-    Route::get('/mock-exam-ratings/my-rating', [MockExamRatingController::class, 'myRating'])->middleware('module.access:mocks');
+    Route::post('/mock-exam-ratings', [MockExamRatingController::class, 'store']);
+    Route::get('/mock-exam-ratings/my-rating', [MockExamRatingController::class, 'myRating']);
 
     // Mocks module (protected by JWT) — GET /mocks is now public above
     Route::post('/mocks', [MockController::class, 'store'])->middleware('module.access:mocks');
@@ -246,5 +248,5 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::post('/mock-questions/{id}/restore', [MockQuestionController::class, 'restore'])->middleware('module.access:mocks');
 
     // Mock Exam Ratings — GET list (protected by JWT)
-    Route::get('/mock-exam-ratings', [MockExamRatingController::class, 'index'])->middleware('module.access:mocks');
+    Route::get('/mock-exam-ratings', [MockExamRatingController::class, 'index']);
 });
