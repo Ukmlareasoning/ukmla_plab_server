@@ -19,7 +19,9 @@ class ActivityLogController extends Controller
         $perPage = (int) $request->query('per_page', 10);
         $perPage = $perPage > 0 ? min($perPage, 100) : 10;
 
-        $query = ActivityLog::query()->with(['user:id,first_name,last_name,email,profile_image,is_online']);
+        $query = ActivityLog::query()
+            ->withTrashed()
+            ->with(['user:id,first_name,last_name,email,profile_image,is_online']);
 
         $applyFilters = filter_var($request->query('apply_filters', false), FILTER_VALIDATE_BOOLEAN);
 
@@ -51,8 +53,11 @@ class ActivityLogController extends Controller
                 'user_id' => $log->user_id,
                 'user' => $userPayload,
                 'action' => $log->action,
+                'status' => $log->deleted_at ? 'Deleted' : 'Active',
+                'is_deleted' => (bool) $log->deleted_at,
                 'created_at' => $log->created_at?->toIso8601String(),
                 'updated_at' => $log->updated_at?->toIso8601String(),
+                'deleted_at' => $log->deleted_at?->toIso8601String(),
             ];
         })->toArray();
 
@@ -76,7 +81,7 @@ class ActivityLogController extends Controller
     }
 
     /**
-     * Permanently delete selected activity logs by ids.
+     * Soft delete selected activity logs by ids.
      * Body: { ids: [1, 2, 3] }
      */
     public function bulkDestroy(Request $request): JsonResponse
@@ -98,15 +103,50 @@ class ActivityLogController extends Controller
         }
 
         $ids = $request->input('ids');
-        $deleted = ActivityLog::whereIn('id', $ids)->delete();
+        $deleted = ActivityLog::whereIn('id', $ids)->whereNull('deleted_at')->delete();
 
         return response()->json([
             'success' => true,
             'message' => $deleted === 1
-                ? '1 activity log deleted permanently.'
-                : $deleted . ' activity logs deleted permanently.',
+                ? '1 activity log deleted successfully.'
+                : $deleted . ' activity logs deleted successfully.',
             'data' => [
                 'deleted_count' => $deleted,
+            ],
+        ], 200);
+    }
+
+    /**
+     * Restore selected soft-deleted activity logs by ids.
+     * Body: { ids: [1, 2, 3] }
+     */
+    public function bulkRestore(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'ids' => ['required', 'array'],
+            'ids.*' => ['required', 'integer'],
+        ], [
+            'ids.required' => 'No activity logs selected.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $ids = $request->input('ids');
+        $restored = ActivityLog::onlyTrashed()->whereIn('id', $ids)->restore();
+
+        return response()->json([
+            'success' => true,
+            'message' => $restored === 1
+                ? '1 activity log restored successfully.'
+                : $restored . ' activity logs restored successfully.',
+            'data' => [
+                'restored_count' => $restored,
             ],
         ], 200);
     }
