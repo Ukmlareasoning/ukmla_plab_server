@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Support\PaidMockAccess;
 use App\Models\Mock;
 use App\Models\MockExam;
 use Illuminate\Http\JsonResponse;
@@ -19,6 +20,11 @@ class MockExamController extends Controller
                 'success' => false,
                 'message' => 'mock_id is required.',
             ], 422);
+        }
+
+        $access = PaidMockAccess::ensurePracticeAccess($request, (int) $mockId);
+        if ($access !== null) {
+            return $access;
         }
 
         $perPage = (int) $request->query('per_page', 10);

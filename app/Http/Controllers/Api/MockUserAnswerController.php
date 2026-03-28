@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Support\PaidMockAccess;
 use App\Models\MockExam;
 use App\Models\MockQuestion;
 use App\Models\MockUserAnswer;
 use App\Models\Mock;
+use App\Models\MockPurchase;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -39,6 +41,11 @@ class MockUserAnswerController extends Controller
                 'message' => 'Validation failed.',
                 'errors'  => $validator->errors(),
             ], 422);
+        }
+
+        $access = PaidMockAccess::ensurePracticeAccess($request, (int) $request->input('mock_id'));
+        if ($access !== null) {
+            return $access;
         }
 
         $question = MockQuestion::with('options')->find($request->input('mock_question_id'));
@@ -95,6 +102,13 @@ class MockUserAnswerController extends Controller
     {
         $user = $request->user();
 
+        if ($mockId = $request->query('mock_id')) {
+            $access = PaidMockAccess::ensurePracticeAccess($request, (int) $mockId);
+            if ($access !== null) {
+                return $access;
+            }
+        }
+
         $query = MockUserAnswer::where('user_id', $user->id)
             ->with([
                 'question.options',
@@ -142,6 +156,12 @@ class MockUserAnswerController extends Controller
 
     private function singleMockProgress(int $userId, int $mockId): JsonResponse
     {
+        $request = request();
+        $access = PaidMockAccess::ensurePracticeAccess($request, $mockId);
+        if ($access !== null) {
+            return $access;
+        }
+
         $exams = MockExam::where('mock_id', $mockId)
             ->where('status', 'Active')
             ->withCount(['questions as total_questions' => fn ($q) => $q->where('status', 'Active')])
@@ -203,6 +223,16 @@ class MockUserAnswerController extends Controller
             ->where('status', 'Active')
             ->with(['examType:id,name', 'difficultyLevel:id,name'])
             ->get();
+
+        $mocks = $mocks->filter(function ($mock) use ($userId) {
+            if (!$mock->is_paid) {
+                return true;
+            }
+
+            return MockPurchase::where('user_id', $userId)
+                ->where('mock_id', $mock->id)
+                ->exists();
+        });
 
         $result = $mocks->map(function ($mock) use ($userId) {
             $userAnswersQuery = MockUserAnswer::where('user_id', $userId)

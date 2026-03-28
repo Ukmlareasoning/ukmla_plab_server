@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Support\PaidMockAccess;
 use App\Models\MockQuestion;
 use App\Models\MockQuestionOption;
 use App\Models\MockQuestionAiTutor;
@@ -15,6 +16,14 @@ class MockQuestionController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $mockIdForAccess = PaidMockAccess::resolveMockIdFromQuestionQuery($request);
+        if ($mockIdForAccess !== null) {
+            $access = PaidMockAccess::ensurePracticeAccess($request, $mockIdForAccess);
+            if ($access !== null) {
+                return $access;
+            }
+        }
+
         $perPage = (int) $request->query('per_page', 10);
         $perPage = $perPage > 0 ? min($perPage, 100) : 10;
 

@@ -65,4 +65,9 @@ class Mock extends Model
     {
         return $this->hasMany(MockQuestion::class, 'mock_id');
     }
+
+    public function purchases(): HasMany
+    {
+        return $this->hasMany(MockPurchase::class, 'mock_id');
+    }
 }

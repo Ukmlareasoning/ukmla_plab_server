@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\MockExamController;
 use App\Http\Controllers\Api\MockQuestionController;
 use App\Http\Controllers\Api\MockExamRatingController;
 use App\Http\Controllers\Api\MockUserAnswerController;
+use App\Http\Controllers\Api\MockPurchaseController;
 use App\Http\Controllers\Api\SubAdminController;
 use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Middleware\JwtAuthMiddleware;
@@ -66,8 +67,8 @@ Route::get('/scenario-questions', [ScenarioQuestionController::class, 'index']);
 
 // Public: mocks list and related data (for user Mocks/Courses pages — no auth required)
 Route::get('/mocks', [MockController::class, 'index']);
-Route::get('/mock-exams', [MockExamController::class, 'index']);
-Route::get('/mock-questions', [MockQuestionController::class, 'index']);
+Route::get('/mock-exams', [MockExamController::class, 'index'])->middleware('jwt.optional');
+Route::get('/mock-questions', [MockQuestionController::class, 'index'])->middleware('jwt.optional');
 Route::get('/exam-types', [ExamTypeController::class, 'index']);
 Route::get('/topic-focuses', [TopicFocusController::class, 'index']);
 
@@ -227,12 +228,16 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
     Route::get('/mock-exam-ratings/my-rating', [MockExamRatingController::class, 'myRating']);
 
     // Mocks module (protected by JWT) — GET /mocks is now public above
+    Route::get('/mocks/my-purchases', [MockPurchaseController::class, 'myPurchases']);
     Route::post('/mocks', [MockController::class, 'store'])->middleware('module.access:mocks');
     Route::get('/mocks/{id}', [MockController::class, 'show'])->middleware('module.access:mocks');
     Route::put('/mocks/{id}/pricing', [MockController::class, 'updatePricing'])->middleware('module.access:mocks');
     Route::match(['put', 'post'], '/mocks/{id}', [MockController::class, 'update'])->middleware('module.access:mocks');
     Route::delete('/mocks/{id}', [MockController::class, 'destroy'])->middleware('module.access:mocks');
     Route::post('/mocks/{id}/restore', [MockController::class, 'restore'])->middleware('module.access:mocks');
+    Route::post('/mocks/{id}/payment-intent', [MockPurchaseController::class, 'createPaymentIntent']);
+    Route::post('/mocks/{id}/purchase', [MockPurchaseController::class, 'purchase']);
+    Route::get('/mocks/{id}/purchases', [MockPurchaseController::class, 'adminIndex'])->middleware('module.access:mocks');
 
     // Mock Exams module (protected by JWT) — GET /mock-exams is now public above
     Route::post('/mock-exams', [MockExamController::class, 'store'])->middleware('module.access:mocks');
