@@ -13,6 +13,9 @@ class WebinarBooking extends Model
         'webinar_id',
         'user_id',
         'status',
+        'stripe_payment_intent_id',
+        'amount_paid',
+        'payment_currency',
     ];
 
     public function webinar(): BelongsTo

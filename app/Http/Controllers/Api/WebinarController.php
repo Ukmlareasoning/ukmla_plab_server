@@ -55,7 +55,22 @@ class WebinarController extends Controller
             ->groupBy('webinar_id')
             ->pluck('cnt', 'webinar_id');
 
-        $items = collect($webinars->items())->map(function (Webinar $webinar) use ($confirmedCounts) {
+        $bookingStats = WebinarBooking::query()
+            ->selectRaw('
+                webinar_id,
+                SUM(CASE WHEN stripe_payment_intent_id IS NOT NULL THEN COALESCE(amount_paid, 0) ELSE 0 END) as gross_revenue,
+                SUM(CASE WHEN stripe_payment_intent_id IS NOT NULL THEN 1 ELSE 0 END) as paid_bookings,
+                SUM(CASE WHEN stripe_payment_intent_id IS NULL THEN 1 ELSE 0 END) as free_bookings
+            ')
+            ->whereIn('webinar_id', $ids)
+            ->where('status', 'Confirmed')
+            ->groupBy('webinar_id')
+            ->get()
+            ->keyBy('webinar_id');
+
+        $revenueCurrency = strtoupper((string) config('services.stripe.currency', 'eur'));
+
+        $items = collect($webinars->items())->map(function (Webinar $webinar) use ($confirmedCounts, $bookingStats, $revenueCurrency) {
             $bannerUrl = null;
             if ($webinar->banner_image) {
                 $bannerUrl = url($webinar->banner_image);
@@ -63,6 +78,11 @@ class WebinarController extends Controller
 
             $confirmed = (int) ($confirmedCounts[$webinar->id] ?? 0);
             $remaining = $webinar->max_attendees !== null ? max(0, $webinar->max_attendees - $confirmed) : null;
+
+            $stats = $bookingStats[$webinar->id] ?? null;
+            $grossRevenue = $stats ? round((float) $stats->gross_revenue, 2) : 0.0;
+            $paidBookingsCount = $stats ? (int) $stats->paid_bookings : 0;
+            $freeBookingsCount = $stats ? (int) $stats->free_bookings : 0;
 
             $startTime = $webinar->start_time;
             $endTime = $webinar->end_time;
@@ -91,6 +111,10 @@ class WebinarController extends Controller
                 'price' => (float) $webinar->price,
                 'maxAttendees' => $webinar->max_attendees,
                 'confirmedBookings' => $confirmed,
+                'grossRevenue' => $grossRevenue,
+                'revenueCurrency' => $revenueCurrency,
+                'paidBookingsCount' => $paidBookingsCount,
+                'freeBookingsCount' => $freeBookingsCount,
                 'remainingSeats' => $remaining,
                 'bannerImage' => $bannerUrl,
                 'status' => $webinar->deleted_at ? 'Deleted' : $webinar->status,

@@ -153,6 +153,7 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
 
     // Webinar bookings (protected by JWT)
     Route::get('/webinars/my-bookings', [WebinarBookingController::class, 'myBookings']);
+    Route::post('/webinars/{id}/payment-intent', [WebinarBookingController::class, 'createPaymentIntent']);
     Route::post('/webinars/{id}/book', [WebinarBookingController::class, 'store']);
     Route::get('/webinars/{id}/bookings', [WebinarBookingController::class, 'index']);
 
