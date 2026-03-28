@@ -67,7 +67,10 @@ class UserController extends Controller
         $activeSubsByUser = [];
         if (!empty($userIds)) {
             $activeSubs = ActivePackageSubscription::whereIn('user_id', $userIds)
-                ->where('status', 'Active')
+                ->whereIn('status', ['Active', 'Cancelled'])
+                ->where(function ($q) {
+                    $q->whereNull('ends_at')->orWhere('ends_at', '>', now());
+                })
                 ->orderByDesc('ends_at')
                 ->get();
             foreach ($activeSubs as $sub) {
@@ -280,12 +283,23 @@ class UserController extends Controller
                 'ends_at' => $sub->ends_at?->toIso8601String(),
                 'status' => $sub->status,
                 'reference' => $sub->reference,
+                'auto_renew' => (bool) ($sub->auto_renew ?? true),
+                'cancelled_at' => $sub->cancelled_at?->toIso8601String(),
                 'created_at' => $sub->created_at?->toIso8601String(),
                 'updated_at' => $sub->updated_at?->toIso8601String(),
             ];
         })->toArray();
 
-        $active = $subscriptions->where('status', 'Active')->values()->map(function (ActivePackageSubscription $sub) {
+        $active = $subscriptions->filter(function (ActivePackageSubscription $sub) {
+            if (!in_array($sub->status, ['Active', 'Cancelled'], true)) {
+                return false;
+            }
+            if ($sub->ends_at === null) {
+                return true;
+            }
+
+            return $sub->ends_at->isFuture();
+        })->values()->map(function (ActivePackageSubscription $sub) {
             return [
                 'id' => $sub->id,
                 'plan_name' => $sub->plan_name,
@@ -294,6 +308,8 @@ class UserController extends Controller
                 'ends_at' => $sub->ends_at?->toIso8601String(),
                 'status' => $sub->status,
                 'reference' => $sub->reference,
+                'auto_renew' => (bool) ($sub->auto_renew ?? true),
+                'cancelled_at' => $sub->cancelled_at?->toIso8601String(),
             ];
         })->toArray();
 

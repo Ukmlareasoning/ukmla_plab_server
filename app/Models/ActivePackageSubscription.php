@@ -29,6 +29,11 @@ class ActivePackageSubscription extends Model
         'ends_at',
         'status',
         'reference',
+        'auto_renew',
+        'cancelled_at',
+        'stripe_subscription_id',
+        'stripe_price_id',
+        'stripe_status',
     ];
 
     /**
@@ -40,6 +45,8 @@ class ActivePackageSubscription extends Model
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
         'amount' => 'decimal:2',
+        'auto_renew' => 'boolean',
+        'cancelled_at' => 'datetime',
     ];
 
     /**

@@ -39,6 +39,12 @@ return [
         'secret' => env('STRIPE_SECRET'),
         'key' => env('STRIPE_KEY'),
         'currency' => env('STRIPE_CURRENCY', 'eur'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        /** Map plan slug → Stripe Price ID (test mode prices from dashboard). DB column stripe_price_id overrides per plan. */
+        'package_prices' => [
+            'standard_monthly' => env('STRIPE_PRICE_STANDARD_MONTHLY'),
+            'premium_quarterly' => env('STRIPE_PRICE_PREMIUM_QUARTERLY'),
+        ],
     ],
 
 ];

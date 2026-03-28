@@ -39,6 +39,7 @@ class User extends Authenticatable
         'subscription_start_date',
         'subscription_end_date',
         'active_subscription_id',
+        'stripe_id',
     ];
 
     /**
@@ -50,6 +51,7 @@ class User extends Authenticatable
         'password',
         'otp',
         'remember_token',
+        'stripe_id',
     ];
 
     /**

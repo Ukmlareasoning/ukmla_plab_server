@@ -13,6 +13,8 @@ use App\Http\Controllers\Api\DifficultyLevelController;
 use App\Http\Controllers\Api\AnnouncementController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\SubscriptionController;
+use App\Http\Controllers\Api\PackageSubscriptionController;
+use App\Http\Controllers\Api\StripeWebhookController;
 use App\Http\Controllers\Api\TopicFocusController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\AccountingController;
@@ -61,6 +63,12 @@ Route::get('/services', [ServiceController::class, 'index']);
 // Public: list webinars (for User Webinars page — no auth)
 Route::get('/webinars', [WebinarController::class, 'index']);
 
+// Public: subscription catalog (pricing page)
+Route::get('/subscription-plans', [PackageSubscriptionController::class, 'plans']);
+
+// Stripe webhooks (raw body; no JWT)
+Route::post('/stripe/webhook', [StripeWebhookController::class, 'handle']);
+
 // Public: list scenario exams and questions (for user Scenario Practice pages — no auth)
 Route::get('/scenario-exams', [ScenarioExamController::class, 'index']);
 Route::get('/scenario-questions', [ScenarioQuestionController::class, 'index']);
@@ -88,6 +96,13 @@ Route::prefix('auth')->group(function () {
 });
 
 Route::middleware(JwtAuthMiddleware::class)->group(function () {
+    Route::get('/my-package-subscription', [PackageSubscriptionController::class, 'me']);
+    Route::post('/my-package-subscription/subscribe', [PackageSubscriptionController::class, 'subscribe']);
+    Route::post('/my-package-subscription/subscribe-intent', [PackageSubscriptionController::class, 'createSubscribeIntent']);
+    Route::post('/my-package-subscription/complete-subscribe', [PackageSubscriptionController::class, 'completeSubscribe']);
+    Route::post('/my-package-subscription/cancel', [PackageSubscriptionController::class, 'cancel']);
+    Route::post('/my-package-subscription/end-now', [PackageSubscriptionController::class, 'endNow']);
+
     Route::get('/accounting', [AccountingController::class, 'index'])->middleware('module.access:accounting');
 
     Route::get('/users', [UserController::class, 'index'])->middleware('module.access:users');
