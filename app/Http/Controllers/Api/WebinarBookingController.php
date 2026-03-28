@@ -149,7 +149,7 @@ class WebinarBookingController extends Controller
         $price = (float) $webinar->price;
 
         if ($price <= 0) {
-            return $this->createConfirmedBooking($webinar, $user, null);
+            return $this->createConfirmedBooking($webinar, $user, null, null, null);
         }
 
         $paymentIntentId = $request->input('payment_intent_id');
@@ -219,13 +219,7 @@ class WebinarBookingController extends Controller
                     'success' => true,
                     'message' => 'Webinar booked successfully.',
                     'data' => [
-                        'booking' => [
-                            'id' => $existingPi->id,
-                            'webinar_id' => $existingPi->webinar_id,
-                            'user_id' => $existingPi->user_id,
-                            'status' => $existingPi->status,
-                            'created_at' => $existingPi->created_at?->toIso8601String(),
-                        ],
+                        'booking' => $this->bookingToArray($existingPi),
                     ],
                 ], 200);
             }
@@ -236,7 +230,10 @@ class WebinarBookingController extends Controller
             ], 422);
         }
 
-        return $this->createConfirmedBooking($webinar, $user, $paymentIntentId);
+        $amountPaid = round(((int) $intent->amount) / 100, 2);
+        $payCurrency = strtolower((string) $intent->currency);
+
+        return $this->createConfirmedBooking($webinar, $user, $paymentIntentId, $amountPaid, $payCurrency);
     }
 
     /**
@@ -254,27 +251,43 @@ class WebinarBookingController extends Controller
             ], 404);
         }
 
-        $bookings = WebinarBooking::with('user')
+        $bookingModels = WebinarBooking::with('user')
             ->where('webinar_id', $id)
             ->orderBy('created_at', 'asc')
-            ->get()
-            ->map(function (WebinarBooking $b) {
-                return [
-                    'id' => $b->id,
-                    'status' => $b->status,
-                    'created_at' => $b->created_at?->toIso8601String(),
-                    'user' => $b->user ? [
-                        'id' => $b->user->id,
-                        'first_name' => $b->user->first_name,
-                        'last_name' => $b->user->last_name,
-                        'email' => $b->user->email,
-                        'profile_image' => $b->user->profile_image ? url($b->user->profile_image) : null,
-                    ] : null,
-                ];
-            });
+            ->get();
 
-        $confirmed = $bookings->where('status', 'Confirmed')->count();
-        $remaining = $webinar->max_attendees !== null ? max(0, $webinar->max_attendees - $confirmed) : null;
+        $bookings = $bookingModels->map(function (WebinarBooking $b) {
+            $row = [
+                'id' => $b->id,
+                'status' => $b->status,
+                'created_at' => $b->created_at?->toIso8601String(),
+                'user' => $b->user ? [
+                    'id' => $b->user->id,
+                    'first_name' => $b->user->first_name,
+                    'last_name' => $b->user->last_name,
+                    'email' => $b->user->email,
+                    'profile_image' => $b->user->profile_image ? url($b->user->profile_image) : null,
+                ] : null,
+                'stripe_payment_intent_id' => $b->stripe_payment_intent_id,
+                'amount_paid' => $b->amount_paid !== null ? (float) $b->amount_paid : null,
+                'payment_currency' => $b->payment_currency ? strtoupper($b->payment_currency) : null,
+                'payment_type' => $b->stripe_payment_intent_id ? 'stripe' : 'free',
+            ];
+            return $row;
+        });
+
+        $confirmed = $bookingModels->where('status', 'Confirmed');
+        $confirmedCount = $confirmed->count();
+        $paidConfirmed = $confirmed->filter(fn (WebinarBooking $b) => $b->stripe_payment_intent_id !== null);
+        $grossRevenue = round(
+            (float) $paidConfirmed->sum(fn (WebinarBooking $b) => (float) ($b->amount_paid ?? 0)),
+            2,
+        );
+        $paidBookingsCount = $paidConfirmed->count();
+        $freeBookingsCount = $confirmedCount - $paidBookingsCount;
+        $revenueCurrency = strtoupper((string) config('services.stripe.currency', 'eur'));
+
+        $remaining = $webinar->max_attendees !== null ? max(0, $webinar->max_attendees - $confirmedCount) : null;
 
         return response()->json([
             'success' => true,
@@ -282,7 +295,11 @@ class WebinarBookingController extends Controller
             'data' => [
                 'bookings' => $bookings->values(),
                 'total_bookings' => $bookings->count(),
-                'confirmed_bookings' => $confirmed,
+                'confirmed_bookings' => $confirmedCount,
+                'paid_bookings' => $paidBookingsCount,
+                'free_bookings' => $freeBookingsCount,
+                'gross_revenue' => $grossRevenue,
+                'revenue_currency' => $revenueCurrency,
                 'remaining_seats' => $remaining,
                 'max_attendees' => $webinar->max_attendees,
             ],
@@ -364,27 +381,46 @@ class WebinarBookingController extends Controller
         return ['webinar' => $webinar];
     }
 
-    private function createConfirmedBooking(Webinar $webinar, User $user, ?string $stripePaymentIntentId): JsonResponse
-    {
+    private function createConfirmedBooking(
+        Webinar $webinar,
+        User $user,
+        ?string $stripePaymentIntentId,
+        ?float $amountPaid,
+        ?string $paymentCurrency,
+    ): JsonResponse {
         $booking = WebinarBooking::create([
             'webinar_id' => $webinar->id,
             'user_id' => $user->id,
             'status' => 'Confirmed',
             'stripe_payment_intent_id' => $stripePaymentIntentId,
+            'amount_paid' => $stripePaymentIntentId ? $amountPaid : null,
+            'payment_currency' => $stripePaymentIntentId ? strtolower((string) $paymentCurrency) : null,
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Webinar booked successfully.',
             'data' => [
-                'booking' => [
-                    'id' => $booking->id,
-                    'webinar_id' => $booking->webinar_id,
-                    'user_id' => $booking->user_id,
-                    'status' => $booking->status,
-                    'created_at' => $booking->created_at?->toIso8601String(),
-                ],
+                'booking' => $this->bookingToArray($booking),
             ],
         ], 201);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function bookingToArray(WebinarBooking $booking): array
+    {
+        return [
+            'id' => $booking->id,
+            'webinar_id' => $booking->webinar_id,
+            'user_id' => $booking->user_id,
+            'status' => $booking->status,
+            'created_at' => $booking->created_at?->toIso8601String(),
+            'stripe_payment_intent_id' => $booking->stripe_payment_intent_id,
+            'amount_paid' => $booking->amount_paid !== null ? (float) $booking->amount_paid : null,
+            'payment_currency' => $booking->payment_currency ? strtoupper($booking->payment_currency) : null,
+            'payment_type' => $booking->stripe_payment_intent_id ? 'stripe' : 'free',
+        ];
     }
 }
