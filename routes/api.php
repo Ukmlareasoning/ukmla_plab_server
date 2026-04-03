@@ -31,6 +31,9 @@ use App\Http\Controllers\Api\MockUserAnswerController;
 use App\Http\Controllers\Api\MockPurchaseController;
 use App\Http\Controllers\Api\SubAdminController;
 use App\Http\Controllers\Api\ActivityLogController;
+use App\Http\Controllers\Api\QbCaseSimulationController;
+use App\Http\Controllers\Api\QbCaseSimulationQuestionController;
+use App\Http\Controllers\Api\QbCaseSimulationRatingController;
 use App\Http\Middleware\JwtAuthMiddleware;
 use Illuminate\Support\Facades\Route;
 
@@ -270,4 +273,24 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
 
     // Mock Exam Ratings — GET list (protected by JWT)
     Route::get('/mock-exam-ratings', [MockExamRatingController::class, 'index']);
+
+    // ── Question Bank Case Simulations (admin CRUD — protected by JWT) ───────
+    Route::get('/qb-case-simulations', [QbCaseSimulationController::class, 'index'])->middleware('module.access:question_bank');
+    Route::post('/qb-case-simulations', [QbCaseSimulationController::class, 'store'])->middleware('module.access:question_bank');
+    Route::match(['put', 'post'], '/qb-case-simulations/{id}', [QbCaseSimulationController::class, 'update'])->middleware('module.access:question_bank');
+    Route::delete('/qb-case-simulations/{id}', [QbCaseSimulationController::class, 'destroy'])->middleware('module.access:question_bank');
+    Route::post('/qb-case-simulations/{id}/restore', [QbCaseSimulationController::class, 'restore'])->middleware('module.access:question_bank');
+
+    // ── Question Bank Case Simulation Questions (admin CRUD — protected by JWT)
+    Route::get('/qb-case-simulation-questions', [QbCaseSimulationQuestionController::class, 'index'])->middleware('module.access:question_bank');
+    Route::post('/qb-case-simulation-questions', [QbCaseSimulationQuestionController::class, 'store'])->middleware('module.access:question_bank');
+    Route::get('/qb-case-simulation-questions/{id}', [QbCaseSimulationQuestionController::class, 'show'])->middleware('module.access:question_bank');
+    Route::match(['put', 'post'], '/qb-case-simulation-questions/{id}', [QbCaseSimulationQuestionController::class, 'update'])->middleware('module.access:question_bank');
+    Route::delete('/qb-case-simulation-questions/{id}', [QbCaseSimulationQuestionController::class, 'destroy'])->middleware('module.access:question_bank');
+    Route::post('/qb-case-simulation-questions/{id}/restore', [QbCaseSimulationQuestionController::class, 'restore'])->middleware('module.access:question_bank');
+
+    // ── Question Bank Case Simulation Ratings ────────────────────────────────
+    Route::get('/qb-case-simulation-ratings', [QbCaseSimulationRatingController::class, 'index']);
+    Route::post('/qb-case-simulation-ratings', [QbCaseSimulationRatingController::class, 'store']);
+    Route::get('/qb-case-simulation-ratings/my-rating', [QbCaseSimulationRatingController::class, 'myRating']);
 });
