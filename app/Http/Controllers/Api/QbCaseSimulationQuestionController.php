@@ -140,6 +140,69 @@ class QbCaseSimulationQuestionController extends Controller
     }
 
     /**
+     * Paginated list of Active questions for an Active case — for logged-in learners.
+     * JWT required; does not require question_bank admin module access.
+     * Query: qb_case_simulation_id (required), page, per_page
+     */
+    public function practiceIndex(Request $request): JsonResponse
+    {
+        $caseId = $request->query('qb_case_simulation_id');
+        if (!$caseId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'qb_case_simulation_id is required.',
+            ], 422);
+        }
+
+        $case = QbCaseSimulation::query()
+            ->whereKey($caseId)
+            ->where('status', 'Active')
+            ->first();
+
+        if (!$case) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Case simulation not found.',
+            ], 404);
+        }
+
+        $perPage = (int) $request->query('per_page', 10);
+        $perPage = $perPage > 0 ? min($perPage, 100) : 10;
+
+        $questions = QbCaseSimulationQuestion::query()
+            ->where('qb_case_simulation_id', $caseId)
+            ->where('status', 'Active')
+            ->with(['options', 'aiTutor'])
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->paginate($perPage);
+
+        $items = collect($questions->items())->map(fn ($q) => $this->formatQuestion($q))->toArray();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Questions retrieved successfully.',
+            'data' => [
+                'qb_case_simulation' => [
+                    'id'       => $case->id,
+                    'title'    => $case->title,
+                    'icon_key' => $case->icon_key,
+                    'status'   => $case->status,
+                ],
+                'qb_case_simulation_questions' => $items,
+                'pagination' => [
+                    'current_page' => $questions->currentPage(),
+                    'last_page'    => $questions->lastPage(),
+                    'per_page'     => $questions->perPage(),
+                    'total'        => $questions->total(),
+                    'from'         => $questions->firstItem(),
+                    'to'           => $questions->lastItem(),
+                ],
+            ],
+        ], 200);
+    }
+
+    /**
      * Show a single question with full details (admin edit).
      */
     public function show(int $id): JsonResponse
