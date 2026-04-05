@@ -72,6 +72,57 @@ class QbCaseSimulationController extends Controller
     }
 
     /**
+     * Public catalogue: active, non-deleted case simulations only.
+     * No authentication. Query params: text (with apply_filters=1), page, per_page.
+     * Search matches title and description only.
+     */
+    public function publicIndex(Request $request): JsonResponse
+    {
+        $perPage = (int) $request->query('per_page', 10);
+        $perPage = $perPage > 0 ? min($perPage, 100) : 10;
+
+        $query = QbCaseSimulation::query()->where('status', 'Active');
+
+        $applyFilters = filter_var($request->query('apply_filters', false), FILTER_VALIDATE_BOOLEAN);
+
+        if ($applyFilters && ($text = $request->query('text'))) {
+            $searchTerm = '%' . $text . '%';
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('title', 'like', $searchTerm)
+                    ->orWhere('description', 'like', $searchTerm);
+            });
+        }
+
+        $cases = $query->withCount([
+            'questions as total_questions_count' => function ($q) {
+                $q->withoutTrashed();
+            },
+        ])->orderBy('id', 'asc')->paginate($perPage);
+
+        $items = collect($cases->items())->map(function (QbCaseSimulation $case) {
+            return $this->formatPublicCase($case);
+        })->toArray();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Question bank case simulations retrieved successfully.',
+            'data' => [
+                'qb_case_simulations' => $items,
+                'pagination' => [
+                    'current_page' => $cases->currentPage(),
+                    'last_page'    => $cases->lastPage(),
+                    'per_page'     => $cases->perPage(),
+                    'total'        => $cases->total(),
+                    'from'         => $cases->firstItem(),
+                    'to'           => $cases->lastItem(),
+                    'prev_page_url' => $cases->previousPageUrl(),
+                    'next_page_url' => $cases->nextPageUrl(),
+                ],
+            ],
+        ], 200);
+    }
+
+    /**
      * Store a new question bank case simulation.
      */
     public function store(Request $request): JsonResponse
@@ -238,6 +289,19 @@ class QbCaseSimulationController extends Controller
             'created_at'            => $case->created_at?->toIso8601String(),
             'updated_at'            => $case->updated_at?->toIso8601String(),
             'deleted_at'            => $case->deleted_at?->toIso8601String(),
+        ];
+    }
+
+    /** Minimal shape for unauthenticated catalogue responses. */
+    private function formatPublicCase(QbCaseSimulation $case): array
+    {
+        return [
+            'id'                    => $case->id,
+            'icon_key'              => $case->icon_key,
+            'title'                 => $case->title,
+            'description'           => $case->description,
+            'status'                => $case->status,
+            'total_questions_count' => $case->total_questions_count ?? 0,
         ];
     }
 }

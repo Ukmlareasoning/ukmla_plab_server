@@ -83,6 +83,9 @@ Route::get('/mock-questions', [MockQuestionController::class, 'index'])->middlew
 Route::get('/exam-types', [ExamTypeController::class, 'index']);
 Route::get('/topic-focuses', [TopicFocusController::class, 'index']);
 
+// Public: question bank case simulations list (user Question Bank page — no auth)
+Route::get('/qb-case-simulations-public', [QbCaseSimulationController::class, 'publicIndex']);
+
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
@@ -273,6 +276,9 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
 
     // Mock Exam Ratings — GET list (protected by JWT)
     Route::get('/mock-exam-ratings', [MockExamRatingController::class, 'index']);
+
+    // Question bank — learner practice questions (any authenticated user; not admin-module gated)
+    Route::get('/qb-case-simulation-questions-for-practice', [QbCaseSimulationQuestionController::class, 'practiceIndex']);
 
     // ── Question Bank Case Simulations (admin CRUD — protected by JWT) ───────
     Route::get('/qb-case-simulations', [QbCaseSimulationController::class, 'index'])->middleware('module.access:question_bank');
