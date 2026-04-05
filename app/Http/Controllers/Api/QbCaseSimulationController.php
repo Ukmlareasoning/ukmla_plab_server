@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\QbCaseSimulation;
+use App\Models\QbCaseSimulationUserAnswer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class QbCaseSimulationController extends Controller
@@ -73,8 +75,8 @@ class QbCaseSimulationController extends Controller
 
     /**
      * Public catalogue: active, non-deleted case simulations only.
-     * No authentication. Query params: text (with apply_filters=1), page, per_page.
-     * Search matches title and description only.
+     * Optional Bearer JWT (jwt.optional): when present, each item includes user progress.
+     * Query: progress_status = all | ongoing | completed | not_started (only when authenticated).
      */
     public function publicIndex(Request $request): JsonResponse
     {
@@ -93,14 +95,84 @@ class QbCaseSimulationController extends Controller
             });
         }
 
+        $user = $request->user();
+        $progressStatus = $request->query('progress_status', 'all');
+
+        if ($user && in_array($progressStatus, ['ongoing', 'completed', 'not_started'], true)) {
+            $userId = $user->id;
+            $caseTable = (new QbCaseSimulation())->getTable();
+
+            if ($progressStatus === 'not_started') {
+                $query->whereNotExists(function ($q) use ($userId, $caseTable) {
+                    $q->select(DB::raw('1'))
+                        ->from('qb_case_simulation_user_answers as ua')
+                        ->whereColumn('ua.qb_case_simulation_id', $caseTable . '.id')
+                        ->where('ua.user_id', $userId);
+                });
+            } elseif ($progressStatus === 'completed') {
+                $query->whereRaw(
+                    '(SELECT COUNT(*) FROM qb_case_simulation_questions q WHERE q.qb_case_simulation_id = ' . $caseTable . '.id AND q.deleted_at IS NULL AND q.status = ?) > 0',
+                    ['Active'],
+                )->whereRaw(
+                    '(SELECT COUNT(*) FROM qb_case_simulation_user_answers ua WHERE ua.user_id = ? AND ua.qb_case_simulation_id = ' . $caseTable . '.id) = (SELECT COUNT(*) FROM qb_case_simulation_questions q2 WHERE q2.qb_case_simulation_id = ' . $caseTable . '.id AND q2.deleted_at IS NULL AND q2.status = ?)',
+                    [$userId, 'Active'],
+                );
+            } elseif ($progressStatus === 'ongoing') {
+                $query->whereRaw(
+                    '(SELECT COUNT(*) FROM qb_case_simulation_user_answers ua WHERE ua.user_id = ? AND ua.qb_case_simulation_id = ' . $caseTable . '.id) > 0',
+                    [$userId],
+                )->whereRaw(
+                    '(SELECT COUNT(*) FROM qb_case_simulation_user_answers ua WHERE ua.user_id = ? AND ua.qb_case_simulation_id = ' . $caseTable . '.id) < (SELECT COUNT(*) FROM qb_case_simulation_questions q WHERE q.qb_case_simulation_id = ' . $caseTable . '.id AND q.deleted_at IS NULL AND q.status = ?)',
+                    [$userId, 'Active'],
+                );
+            }
+        }
+
         $cases = $query->withCount([
             'questions as total_questions_count' => function ($q) {
-                $q->withoutTrashed();
+                $q->withoutTrashed()->where('status', 'Active');
             },
         ])->orderBy('id', 'asc')->paginate($perPage);
 
-        $items = collect($cases->items())->map(function (QbCaseSimulation $case) {
-            return $this->formatPublicCase($case);
+        $userId = $user?->id;
+        $caseIds = collect($cases->items())->pluck('id')->all();
+        $batchStats = $userId && $caseIds !== []
+            ? QbCaseSimulationUserAnswer::query()
+                ->where('user_id', $userId)
+                ->whereIn('qb_case_simulation_id', $caseIds)
+                ->groupBy('qb_case_simulation_id')
+                ->selectRaw('qb_case_simulation_id, COUNT(*) as answered, SUM(CASE WHEN is_correct THEN 1 ELSE 0 END) as correct')
+                ->get()
+                ->keyBy('qb_case_simulation_id')
+            : collect();
+
+        $items = collect($cases->items())->map(function (QbCaseSimulation $case) use ($userId, $batchStats) {
+            $row = $this->formatPublicCase($case);
+            if ($userId) {
+                $total = (int) ($case->total_questions_count ?? 0);
+                $stat = $batchStats->get($case->id);
+                $answered = $stat ? (int) $stat->answered : 0;
+                $correct = $stat ? (int) $stat->correct : 0;
+                $attemptPercent = $total > 0 ? (int) round(($answered / $total) * 100) : 0;
+                $accuracyPercent = $answered > 0 ? (int) round(($correct / $answered) * 100) : 0;
+                $isComplete = $total > 0 && $answered >= $total;
+                $status = 'not_started';
+                if ($answered > 0 && !$isComplete) {
+                    $status = 'ongoing';
+                } elseif ($isComplete) {
+                    $status = 'completed';
+                }
+                $row['user_progress'] = [
+                    'answered_count'   => $answered,
+                    'correct_count'    => $correct,
+                    'attempt_percent'    => $attemptPercent,
+                    'accuracy_percent'   => $accuracyPercent,
+                    'is_complete'        => $isComplete,
+                    'progress_status'    => $status,
+                ];
+            }
+
+            return $row;
         })->toArray();
 
         return response()->json([
