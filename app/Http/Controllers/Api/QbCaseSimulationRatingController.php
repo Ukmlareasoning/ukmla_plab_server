@@ -7,7 +7,6 @@ use App\Models\QbCaseSimulation;
 use App\Models\QbCaseSimulationRating;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
 class QbCaseSimulationRatingController extends Controller
@@ -72,7 +71,14 @@ class QbCaseSimulationRatingController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        $userId = Auth::id();
+        $user = $request->user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Not authenticated.',
+            ], 401);
+        }
+        $userId = $user->id;
 
         $validator = Validator::make($request->all(), [
             'qb_case_simulation_id' => ['required', 'integer', 'exists:qb_case_simulations,id'],
@@ -133,7 +139,14 @@ class QbCaseSimulationRatingController extends Controller
      */
     public function myRating(Request $request): JsonResponse
     {
-        $userId = Auth::id();
+        $user = $request->user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Not authenticated.',
+            ], 401);
+        }
+        $userId = $user->id;
         $caseId = $request->query('qb_case_simulation_id');
 
         if (!$caseId) {
@@ -143,7 +156,7 @@ class QbCaseSimulationRatingController extends Controller
             ], 422);
         }
 
-        $rating = QbCaseSimulationRating::with('user:id,full_name,profile_image')
+        $rating = QbCaseSimulationRating::with('user:id,first_name,last_name,profile_image')
             ->where('qb_case_simulation_id', $caseId)
             ->where('user_id', $userId)
             ->first();

@@ -29,4 +29,9 @@ class QbCaseSimulation extends Model
     {
         return $this->hasMany(QbCaseSimulationRating::class, 'qb_case_simulation_id');
     }
+
+    public function userAnswers(): HasMany
+    {
+        return $this->hasMany(QbCaseSimulationUserAnswer::class, 'qb_case_simulation_id');
+    }
 }

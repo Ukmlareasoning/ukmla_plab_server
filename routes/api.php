@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\QbCaseSimulationController;
 use App\Http\Controllers\Api\QbCaseSimulationQuestionController;
 use App\Http\Controllers\Api\QbCaseSimulationRatingController;
+use App\Http\Controllers\Api\QbCaseSimulationUserAnswerController;
 use App\Http\Middleware\JwtAuthMiddleware;
 use Illuminate\Support\Facades\Route;
 
@@ -83,8 +84,8 @@ Route::get('/mock-questions', [MockQuestionController::class, 'index'])->middlew
 Route::get('/exam-types', [ExamTypeController::class, 'index']);
 Route::get('/topic-focuses', [TopicFocusController::class, 'index']);
 
-// Public: question bank case simulations list (user Question Bank page — no auth)
-Route::get('/qb-case-simulations-public', [QbCaseSimulationController::class, 'publicIndex']);
+// Public: question bank case simulations list (optional JWT for per-user progress)
+Route::get('/qb-case-simulations-public', [QbCaseSimulationController::class, 'publicIndex'])->middleware('jwt.optional');
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
@@ -279,6 +280,12 @@ Route::middleware(JwtAuthMiddleware::class)->group(function () {
 
     // Question bank — learner practice questions (any authenticated user; not admin-module gated)
     Route::get('/qb-case-simulation-questions-for-practice', [QbCaseSimulationQuestionController::class, 'practiceIndex']);
+
+    // Question bank — user answers, progress, completed-case history (authenticated)
+    Route::get('/qb-case-simulation-user-answers', [QbCaseSimulationUserAnswerController::class, 'index']);
+    Route::post('/qb-case-simulation-user-answers', [QbCaseSimulationUserAnswerController::class, 'store']);
+    Route::get('/qb-case-simulation-completed-history', [QbCaseSimulationUserAnswerController::class, 'completedHistory']);
+    Route::get('/qb-case-user-progress', [QbCaseSimulationUserAnswerController::class, 'progress']);
 
     // ── Question Bank Case Simulations (admin CRUD — protected by JWT) ───────
     Route::get('/qb-case-simulations', [QbCaseSimulationController::class, 'index'])->middleware('module.access:question_bank');
